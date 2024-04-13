@@ -1,13 +1,12 @@
 import "regent"
 
+--Import libraries
 local format = require("std/format")
 local launcher = require("std/launcher")
-
 local data = require("common/data")
 local cmapper = require("test_mapper")
-
 local gpuhelper = require("regent/gpu/helper")
-local default_foreign = gpuhelper.check_gpu_available()
+local gpu_available = gpuhelper.check_gpu_available()
 
 --Import C and FFTW APIs
 local c = regentlib.c
@@ -16,11 +15,12 @@ terralib.linklibrary("libfftw3.so")
 
 --Import cuFFT API
 local cufft_c
-if default_foreign then
+if gpu_available then
   cufft_c = terralib.includec("cufftXt.h")
   terralib.linklibrary("libcufft.so")
 end
 
+--Define constants
 fftw_c.FFTW_FORWARD = -1
 fftw_c.FFTW_BACKWARD = 1
 fftw_c.FFTW_MEASURE = 0
@@ -28,12 +28,14 @@ fftw_c.FFTW_ESTIMATE = (2 ^ 6)
 
 local fft = {}
 
+-- Create the FFT interface
 --itype should be the index type of the transform (int1d for 1d/int2d for 2d). dtype_in = complex64/complex32/real/float; dtype_out = complex32/complex64 depending on transform. 
 function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   assert(regentlib.is_index_type(itype), "requires an index type as the first argument")
   local dim = itype.dim
   local dtype_size = terralib.sizeof(dtype_out)
   
+  --Identify if it is a R2C transform: real_flag is true if an R2C transform
   local real_flag = false
   if dtype_in == double or dtype_in == float then
     real_flag = true
@@ -45,8 +47,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
   -- Create fspaces depending on whether GPUs are used or not
   local iface_plan
- 
-  if default_foreign then 
+  if gpu_available then 
     fspace iface_plan {
       p : fftw_c.fftw_plan,
       float_p : fftw_c.fftwf_plan,
@@ -65,6 +66,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   iface.plan = iface_plan
   iface.plan.__no_field_slicing = true -- don't field slice this struct
      
+  -- Create function that returns a base_pointer to a region with ispace of dimension d and fspace t
   -- d is dimension, t is dtype/region fspace (complex 64)
   local function make_get_base(d, t)
 
@@ -108,6 +110,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     return rect_t, get_base, get_offset
   end
 
+  --Define get_base functions for input, output, and plan regions
   local rect_plan_t, get_base_plan, get_offset_plan = make_get_base(1, iface.plan) --get_base_plan returns a base_pointer to a region with fspace iface.plan. (always dim = 1 because plan regions are dim 1: 'var p = region(ispace(int1d, 1), fft1d.plan)')
   local rect_t_in, get_base_in, get_offset_in = make_get_base(dim, dtype_in) --get_base returns a base pointer to a region with fspace dtype
   local rect_t_out, get_base_out, get_offset_out = make_get_base(dim, dtype_out) --get_base returns a base pointer to a region with fspace dtype
@@ -139,7 +142,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   task iface.get_tunable(tunable_id : int)
     var f = c.legion_runtime_select_tunable_value(__runtime(), __context(), tunable_id, 0, 0)
     var n = __future(int64, f)
-    -- c.legion_future_destroy(f) -- FIXME (Elliott): I thought Regent was supposed to copy on assignment, but that seems not to happen here, so this would result in a double destroy if we free here.
+    -- c.legion_future_destroy(f) -- Comment from Elliott: I thought Regent was supposed to copy on assignment, but that seems not to happen here, so this would result in a double destroy if we free here.
     return n
   end
 
@@ -148,12 +151,13 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     return iface.get_tunable(DEFAULT_TUNABLE_NODE_COUNT)
   end
 
+  -- Get the number of GPUs
   __demand(__inline)
   task iface.get_num_local_gpus()
     return iface.get_tunable(DEFAULT_TUNABLE_LOCAL_GPUS)
   end
 
-  --Task to return pointer to plan. Takes plan region and returns pointer to plan
+  --Task to return pointer to plan. Takes plan region and returns pointer to plan. Calls get_base_plan made above.
    __demand(__inline)
   task iface.get_plan(plan : region(ispace(int1d), iface.plan), check : bool) : &iface.plan
   where reads(plan) do
@@ -194,7 +198,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   
   --Task: Make plan in GPU version. Calls cufftPlanMany and stores plan in cufft_p
   local make_plan_gpu
-  if default_foreign then
+  if gpu_available then
     __demand(__cuda, __leaf)
     task make_plan_gpu(input : region(ispace(itype), dtype_in), output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan), address_space : c.legion_address_space_t)
     
@@ -323,7 +327,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     p.address_space = address_space
 
     --If GPUs, call make_plan_GPU
-    if default_foreign then
+    if gpu_available then
       format.println("Num_local_gpus is {}", iface.get_num_local_gpus())
       if iface.get_num_local_gpus() > 0 then
         format.println("GPUs identified: calling make_plan_gpu...")
@@ -333,9 +337,9 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
   end
 
-    --Task: Make plan in GPU version. Calls cufftPlanMany and stores plan in cufft_p
+  --Task: Make plan in GPU version. Calls cufftPlanMany and stores plan in cufft_p
   local make_plan_gpu_batch
-  if default_foreign then
+  if gpu_available then
     __demand(__cuda, __leaf)
 
     task make_plan_gpu_batch(input : region(ispace(itype), dtype_in), output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan), address_space : c.legion_address_space_t)
@@ -449,7 +453,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     format.println("Size of dtype is {}", dtype_size)
 
     --If GPUs, call make_plan_GPU
-    if default_foreign then
+    if gpu_available then
       format.println("Num_local_gpus is {}", iface.get_num_local_gpus())
       if iface.get_num_local_gpus() > 0 then
         format.println("GPUs identified: calling make_plan_gpu_batch...")
@@ -504,13 +508,13 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     p.address_space = address_space
   end
 
-
+  --The make_plan tasks above are demand_(__inline tasks). This means that if the user wants it to execute it in a separate task, they must wrap the task themselves -- this is what make_plan_task does.
   task iface.make_plan_task(input : region(ispace(itype), dtype_in), output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan))
   where reads writes(input, output, plan) do
     iface.make_plan(input, output, plan)
   end
 
-  --Distribution version of make_plan
+  --Distribution version of make_plan 
   __demand(__inline)
   task iface.make_plan_distrib(input : region(ispace(itype), dtype_in), input_part : partition(disjoint, input, ispace(int1d)), output : region(ispace(itype), dtype_out), output_part : partition(disjoint, output, ispace(int1d)), plan : region(ispace(int1d), iface.plan), plan_part : partition(disjoint, plan, ispace(int1d)))
   where reads writes(input, output, plan) do
@@ -525,7 +529,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     --T(x) is a cast from type T to a value x
     p.p = [fftw_c.fftw_plan](0)
 
-    if default_foreign then
+    if gpu_available then
       p.cufft_p = 0
     end
 
@@ -557,27 +561,31 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     var proc = get_executing_processor(__runtime())
     format.println("execute_plan: TOC PROC IS {}",c.TOC_PROC) --TOC = Throughput Oriented Core: Means we have a GPU
     format.println("execute_plan: Processor kind is {}", c.legion_processor_kind(proc))
+    format.println("size of dtype is {}", dtype_size) --dtype size is 8 for complex32 and 16 for complex64
 
-    format.println("size of dtype is {}", dtype_size)
-
-    --If in GPU mode, use cufftExecZ2Z
+    --If in GPU mode, use cufftExec
     if c.legion_processor_kind(proc) == c.TOC_PROC then
       c.printf("execute plan via cuFFT\n")
-
       var ok = 0
+
+      --dtype size is 8 for complex32 and 16 for complex64
       format.println("size of dtype is {}", dtype_size)
 
+      --R2C float to complex32
       if dtype_size == 8 and real_flag then
-        format.println("Calling cufftExecR2C ...")
+        format.println("Calling cufftExecR2C (Float to Complex32) ...")
         --ok = cufft_c.cufftExecR2C(p.cufft_p, [&cufft_c.cufftReal](input_base), [&cufft_c.cufftComplex](output_base))
+      --C2C complex32 to complex32
       elseif dtype_size == 8 then
-        format.println("Calling cufftExecC2C ...")
+        format.println("Calling cufftExecC2C (Complex32 to Complex32)...")
         ok = cufft_c.cufftExecC2C(p.cufft_p, [&cufft_c.cufftComplex](input_base), [&cufft_c.cufftComplex](output_base), cufft_c.CUFFT_FORWARD)
+      --R2C double to complex64
       elseif dtype_size == 16 and real_flag then
-        format.println("Calling cufftExecD2Z ...")
+        format.println("Calling cufftExecD2Z (Double to Complex64)...")
         ok = cufft_c.cufftExecD2Z(p.cufft_p, [&cufft_c.cufftDoubleReal](input_base), [&cufft_c.cufftDoubleComplex](output_base))
+      --C2C complex64 to complex64
       elseif dtype_size == 16 then
-        format.println("Calling cufftExecZ2Z ...")
+        format.println("Calling cufftExecZ2Z (Complex64 to Complex64)...")
         ok = cufft_c.cufftExecZ2Z(p.cufft_p, [&cufft_c.cufftDoubleComplex](input_base), [&cufft_c.cufftDoubleComplex](output_base), cufft_c.CUFFT_FORWARD)
       end
 
@@ -592,31 +600,36 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       regentlib.assert(ok == cufft_c.CUFFT_SUCCESS, "cufftExecZ2Z failed")
       format.println("cufftExecZ2Z successful")
 
-    --Otherwise, use FFTW if no GPU
+    --Otherwise, we are in CPU mode: use FFTW if no GPU
     else
       c.printf("execute plan via FFTW\n")
+      --R2C float to complex32: Not supported 
       if dtype_size == 8 and real_flag then
-          format.println("executing r2c")
+          format.println("Executing FFTW R2C Float to Complex32: Not Supported")
           --fftw_c.fftwf_execute_dft_r2c(p.float_p, [&float](input_base), [&fftw_c.fftwf_complex](output_base))     --void fftw_execute_dft(const fftw_plan p, fftw_complex *in, fftw_complex *out))
+      --C2C complex32 to complex32: Not supported 
       elseif dtype_size == 8 then
-          format.println("executing float fftw")
+          format.println("Executing FFTW C2C Complex32 to Complex32: Not Supported")
           --fftw_c.fftwf_execute_dft(p.float_p, [&fftw_c.fftwf_complex](input_base), [&fftw_c.fftwf_complex](output_base))     --void fftw_execute_dft(const fftw_plan p, fftw_complex *in, fftw_complex *out))
+      --R2C double to complex64
       elseif dtype_size == 16 and real_flag then
-          format.println("executing fftw_dft_r2c")
+          format.println("Executing FFTW R2C double to complex64")
           fftw_c.fftw_execute_dft_r2c(p.p, [&double](input_base), [&fftw_c.fftw_complex](output_base))     --void fftw_execute_dft(const fftw_plan p, fftw_complex *in, fftw_complex *out))
+      --C2C complex64 to complex64
       elseif dtype_size == 16 then
-          format.println("executing fftw dft")
+          format.println("Executing FFTW C2C complex64 to complex64")
           fftw_c.fftw_execute_dft(p.p, [&fftw_c.fftw_complex](input_base), [&fftw_c.fftw_complex](output_base))   --void fftw_execute_dft(const fftw_plan p, fftw_complex *in, fftw_complex *out))
       end 
     end
   end
 
+
+  --execute_plan tasks are demand_(__inline tasks). This means that if the user wants it to execute it in a separate task, they must wrap the task themselves -- this is what execute_plan_task does.
   __demand(__cuda, __leaf)
   task iface.execute_plan_task(input : region(ispace(itype), dtype_in), output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan))
   where reads(input, plan), reads writes(output) do
     iface.execute_plan(input, output, plan)
   end
-  
 
 
   ----DESTROY PLAN FUNCTIONS----
@@ -628,24 +641,25 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
    format.println("In iface.destroy_plan...")
 
     var p = iface.get_plan(plan, true)
-
     var proc = get_executing_processor(__runtime())
 
     -- If using GPUs, call cufftDestroy
     if c.legion_processor_kind(proc) == c.TOC_PROC then
       c.printf("Destroy plan via cuFFT\n")
-
       --Function: cufftResult cufftDestroy(cufftHandle plan)
       cufft_c.cufftDestroy(p.cufft_p) 
     else
-      -- Else, call fftw_destroy
+      -- Else, if on CPUs, call fftw_destroy
       c.printf("Destroy plan via FFTW\n")
       fftw_c.fftw_destroy_plan(p.p)
+      -- Commented out float version of FFTW: not supported
       --fftw_c.fftwf_destroy_plan(p.float_p)
     end
   end
 
 
+
+  --destroy_plan task is a demand_(__inline tasks). This means that if the user wants it to execute it in a separate task, they must wrap the task themselves -- this is what destroy_plan_task does.
   task iface.destroy_plan_task(plan : region(ispace(int1d), iface.plan))
   where reads writes(plan) do
     iface.destroy_plan(plan)

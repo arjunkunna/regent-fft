@@ -1,0 +1,35 @@
+name: Regent-FFT Tests
+
+run-name: ${{ github.actor }} is testing Regent-FFT
+
+on: 
+  push:
+    branches: [main]
+    paths-ignore: ['**/*.md']
+  pull_request:
+    branches: [main]
+    paths-ignore: ['**/*.md']
+  workflow_dispatch:
+
+jobs:
+  regent-FFT-tests:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: ['ubuntu-22.04'] # 'macos-11' # FIXME: macOS is broken: https://github.com/StanfordLegion/legion/issues/213
+        # debug: ['1', '0']
+        debug: ['0']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Running tests
+        shell: bash
+        env:
+          DEBUG: ${{ matrix.debug }}
+          USE_REGENT: '1'
+          INSTALL_DEPS: '1'
+          SUDO_COMMAND: sudo
+        run: |
+          ./test.sh

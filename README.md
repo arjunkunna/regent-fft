@@ -1,189 +1,187 @@
-# Regent FFT library
+# Regent-FFT
 
-## Installation
+[![Regent-FFT Tests](https://github.com/arjunkunna/regent-fft-arjun/actions/workflows/main.yml/badge.svg)](https://github.com/arjunkunna/regent-fft-arjun/actions/workflows/main.yml)
 
+This is a fast fourier transform library built in Regent.
+
+## Description
+
+At a high level, the library takes the input matrix for the DFT in the form of a
+region, and saves the output in an output region.
+
+The library currently supports transforms up to 3 dimensions, and can be
+configured to run on either a CPU or a GPU.
+
+The CPU mode is supported by [FFTW](https://www.fftw.org/), and the GPU mode by
+[cuFFT](https://developer.nvidia.com/cufft).
+
+Both Complex-to-Complex and Real-To-Complex transformations are supported.
+
+Both `complex64` and `complex32` types are supported in GPU mode. CPU mode is
+only able to support `complex64`. It is possible to use `complex32` in CPU mode
+but it requires some additional setup - please contact me if that is of
+interest.
+
+## Getting Started
+
+### Installing
+
+First, clone the repo:
+
+```shell
+git clone https://github.com/arjunkunna/regent-fft-arjun.git
 ```
+
+Next, run the install script and add environment variables:
+
+```shell
 ./install.py
 source env.sh
-../regent.py test/fft_test.rg
+```
+
+Then, run your `.rg` script, which can be set up using the instructions in the
+'Executing Program' section:
+
+```shell
+../legion/language/regent.py test/fft_test.rg
+```
+
+If operating in sapling, here are some startup instructions:
+
+```shell
+ssh <username>@sapling.stanford.edu
+module load slurm mpi cmake cuda llvm
+srun -n 1 -N 1 -c 40 -p gpu --exclusive --pty bash --login
+<navigate to your .rg file>
+source env.sh
+../legion/language/regent.py test/fft_test.rg
 ```
 
 ## Usage
 
-Regent FFT currently supports two distinct classes of use cases:
+### Executing program
 
- 1. Every machine in a distributed job executes an independent FFT of
-    a different size. (Use the "non-distributed" API below.)
- 2. Every machine in a distributed job executes an independent FFT of
-    the same size. (Use the "distributed" API below.)
+There are 3 possible modes:
 
-In the future we may add support for collective FFTs where multiple
-machines cooperate to jointly compute a single FFT which is too large
-to fit in any single node's memory.
+1. GPU vs. CPU
+2. Complex-to-Complex vs. Real-to-Complex
+3. Float vs. Double (Float only supported in GPU mode)
 
-## API Overview
+API usage generally follows the following steps.
 
-In order to use the FFT library, you must first initialize it for the
-specific number of dimensions and data type you are interested
-in. Currently only 1 to 3 dimensions and `complex64` are
-supported. For example, to initialize with 1 dimension:
+First, an FFT interface has to be generated depending on the type of transform
+you hope to do. Then, we:
 
-```
+- create a plan,
+- execute the said plan, and then
+- destroy the plan once we are done.
+
+There are several sample code snippets in the `fft_test.rg` file for reference
+as well.
+
+#### 1. Link the `fft.rg` file and generate an interface
+
+- The first argument is the dimension - `int1d`, `int2d`, or `int3d`.
+- The second argument is the data type of the input - `complex64`, `complex32`,
+  `real`, or `double`.
+- The third argument is the data type of the input - `complex64` or `complex32`.
+
+```lua
 local fft = require("fft")
-
-local fft1d = fft.generate_fft_interface(int1d, complex64)
+local fft1d = fft.generate_fft_interface(int1d, complex64, complex64)
 ```
 
-### Initialization
+#### 2. Make a plan
 
-Like many FFT libraries, Regent FFT requires the use of *plans*. Plans
-are specific to the sizes of the input and output regions being used,
-as well as the machine node the plan is initialized on. Currently *the
-enforcement of these assumptions is the responsibility of the user*.
+`make_plan` takes three arguments:
 
-The way that a plan is initialized depends on the usage mode. In
-general, plans are stored in a region which is managed by the
-user. The plan region may be a subregion and need not start at zero,
-but it must contain at least a number of elements depending on the
-mode: 1 in non-distributed mode, `N` in distributed mode where `N` is
-the number of nodes.
+1. `r`: input region
+2. `s`: output region
+3. `p`: plan region
 
-To initialize in non-distributed mode:
-
-```
-var p = region(ispace(int1d, 1), fft1d.plan)
+```lua
 fft1d.make_plan(r, s, p)
 ```
 
-**Important:** `make_plan` overwites the input and output regions `r`
-and `s`. This is mandated by FFTW, which Regent FFT uses on CPUs. In
-order to avoid overwriting data, the user must either initialize the
-plan prior to loading the regions with data, or else must create a
-temporary region (of the same size and layout as the real one) for use
-in initialization.
+The input region should be initialized with index space of the form
+`ispace(<type>, N)`, where N is the size of the array, and `<type>` is either
+int1d/int2d/int3d depending on the dimension of the transform. The fieldspace of
+the region is the type supported by the transform - e.g, in a real-to-complex
+transform with doubles, the input array will have fieldspace `double` and output
+array will have fieldspace `complex64`.
 
-Note that, like all non-distributed mode tasks, `make_plan` is a
-`__demand(__inline)` task. This means that if the user wants it to
-execute it in a separate task, they must wrap the task themselves.
+For example, in a 1D double-to-complex64 transform of size 3, the input and
+output regions may be initialized as follows:
 
-To initialize in distributed mode:
-
-```
-var n = fft1d.get_num_nodes()
-var p = region(ispace(int1d, n), fft1d.plan)
-var p_part = partition(equal, p, ispace(int1d, n))
-fft1d.make_plan_distrib(r, r_part, s, s_part, p, p_part)
+```lua
+var r = region(ispace(int1d, 3), double)
+var s = region(ispace(int1d, 3), complex64)
 ```
 
-Note the use of `get_num_nodes` to determine the size of the `p`
-region and partition. The task `make_plan_distrib` is a
-`__demand(__inline)` task that internally performs an index launch
-over the machine to initialize `p`.
+The plan region always takes the following form, with fieldspace `fft.plan` (see
+`fft.rg` for description of plan fieldspace):
 
-**Important:** like `make_plan`, `make_plan_distrib` overwrites the
-input and output regions `r` and `s`.
-
-**Important:** in order for the distributed API to work correctly, it
-is essential that each task in the index launch inside of
-`make_plan_distrib` is mapped onto a separate node. This ensures that
-when the region `p` is used later, there is a plan for every node in
-the machine.
-
-### Execution
-
-To perform an FFT, execute the plan. Note that, unlike with
-initialization, this looks similar whether or not distributed mode is
-being used.
-
-For example, if there is a single input `r` and output `s`:
-
-```
-fft1d.execute_plan(r, s, p)
+```lua
+var p = region(ispace(int1d, 1), fft1d.plan)
 ```
 
-Or if there are partitions `r_part` and `s_part` that are distributed
-around the machine, one might do:
+`make_plan` is a `__demand(__inline)` task. This means that if the user wants it
+to execute it in a separate task, they must wrap the task themselves
 
+#### 3. Execute the plan
+
+Next, we execute the plan. This takes the same 3 regions as mentioned above.
+
+```lua
+fft1d.execute_plan_task(r, s, p)
 ```
-__demand(__index_launch)
-for i in r_part.colors do
-  fft1d.execute_plan_task(r_part[i], s_part[i], p)
-end
-```
 
-Note that `execute_plan` is a `__demand(__inline)` task (as described
-above). The task `execute_plan_task` is simply a wrapper around
-`execute_plan` for convenience, to avoid needing to define this
-explicitly.
+Note that `execute_plan` is a `__demand(__inline)` task (similar to `make_plan`
+above). The task `execute_plan_task` is simply a wrapper around `execute_plan`
+for convenience, to avoid needing to define this explicitly.
 
-**Important:** because `execute_plan` is a `__demand(__inline)` task,
-it will never execute on the GPU (unless the parent task is running on
-the GPU). Therefore, in most cases it is necessary to use
-`execute_plan_task` if one wants to use the GPU.
+> [!IMPORTANT]
+>
+> Because `execute_plan` is a `__demand(__inline)` task, it will never execute
+> on the GPU (unless the parent task is running on the GPU). Therefore, in most
+> cases, it is necessary to use `execute_plan_task` if one wants to use the GPU.
 
-**Important:** while `execute_plan_task` may be executed on the GPU,
-the contents of the `p` region must still be available on the CPU,
-because the plans must be used by the host-side code to launch the FFT
-kernels. Therefore, when `execute_plan_task` is mapped onto the GPU it
-is very important to map the `p` region into zero-copy memory.
+#### 4. Destroy the plan
 
-### Finalization
+When a plan is no longer needed, it can be destroyed:
 
-When a plan is no longer needed it can be distroyed.
-
-In the non-distributed API:
-
-```
+```lua
 fft1d.destroy_plan(p)
 ```
 
-In the distributed API:
+## Future Developments
 
-```
-fft1d.destroy_plan_distrib(p, p_part)
-```
+Next items in the pipeline include batch transforms, as well as distributed
+transforms across multiple nodes. Please let us know if there are specific
+features that may be helpful.
 
-Note: these are both `__demand(__inline)` tasks, and
-`destroy_plan_distrib` will internally perform an index launch to
-destroy the plans on each node.
+## Authors
 
-**Important:** like `make_plan_distrib`, the index launch issued by
-`destroy_plan_distrib` must be mapped so that each point task runs on
-the node where the plan was originally created.
+- Elliott Slaughter (<slaughter@cs.stanford.edu>)
+- Arjun Kunna (<arjunkunna@gmail.com>)
 
-## Caveats
+## Version History
 
-  * FFTW's planner is *not thread-safe*, but this isn't currently
-    protected by a lock in the Regent wrapper.
+- 1.0
+  - Initial Release - Supports CPU and single-GPU transforms for 1D, 2D, and 3D.
+    Supports Real-to-complex and Complex-to-Complex transforms for both CPU and
+    GPU. Supports complex32 for GPU.
 
-  * FFT operations are backed by FFTW, so at the moment the run
-    CPU-only and only on a single node. (OpenMP is hypothetically
-    possible, but I haven't tested it yet.)
+## Additional Resources
 
-  * Optimization: Currently we take the approach of "always measure"
-    with FFTW. This isn't even an option with cuFFT. Should this be
-    exposed?
+- For information on Regent, please refer to [the Regent
+  website](https://regent-lang.org/)
+- For information on the FFT transform, please refer to these set of
+  [notes](https://web.stanford.edu/class/cs168/l/l15.pdf) or this
+  [course](https://see.stanford.edu/Course/EE261)
 
-  * Missing features:
-      * strides
-      * batches
-      * complex32
-      * backwards
-      * split
-      * real
+## Acknowledgments
 
-  * Multi-GPU is probably not supported right now because cuFFT plans
-    are (probably) tied to a context for a specific GPU.
-
-## Implementation Notes
-
-  * In a distributed execution, plans need to be collected into a big
-    region in order to allow load-balancing (and flexible mapping in
-    general). This means all nodes need to be executing FFTs of the
-    same size. If this isn't the case, then plans can be created
-    locally (with the non-distributed API) but then the FFT cannot be
-    moved for execution somewhere else.
-
-  * Plans for the GPU need to go in zero-copy memory so that they can
-    be accessed by the CPU thread which is assigned to execute the
-    task
+- [FFTW](https://www.fftw.org/)
+- [cuFFT](https://developer.nvidia.com/cufft)
+- [Regent](https://regent-lang.org/)

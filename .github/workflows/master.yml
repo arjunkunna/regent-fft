@@ -4,10 +4,10 @@ run-name: ${{ github.actor }} is testing Regent-FFT
 
 on: 
   push:
-    branches: [main]
+    branches: [master]
     paths-ignore: ['**/*.md']
   pull_request:
-    branches: [main]
+    branches: [master]
     paths-ignore: ['**/*.md']
   workflow_dispatch:
 

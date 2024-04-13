@@ -3,7 +3,6 @@ import "regent"
 local format = require("std/format")
 local launcher = require("std/launcher")
 
-
 local data = require("common/data")
 local cmapper = require("test_mapper")
 

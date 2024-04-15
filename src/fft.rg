@@ -365,7 +365,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       if c.legion_processor_kind(proc) == c.TOC_PROC then
         format.println("Processor is TOC, so running GPU functions")
         var i = c.legion_processor_address_space(proc)
-        regentlib.assert(address_space == i, "make_plan_gpu must be executed on a processor in the same address space")
+        regentlib.assert(address_space == i, "make_plan_gpu_batch must be executed on a processor in the same address space")
 
         --Get input and output bases
         var input_base = get_base_in(rect_t_in(input.ispace.bounds), __physical(input)[0], __fields(input)[0])

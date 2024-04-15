@@ -64,7 +64,8 @@ static void create_mappers(Machine machine, Runtime *runtime, const std::set<Pro
   {
     FFTTestMapper* mapper = new FFTTestMapper(runtime->get_mapper_runtime(), machine, *it, "fft_test_mapper");
     //LoggingWrapper mapper = new LoggingWrapper(new FFTTestMapper(runtime->get_mapper_runtime(), machine, *it, "fft_test_mapper"));
-    runtime->replace_default_mapper((new LoggingWrapper(mapper)), *it);
+    //runtime->replace_default_mapper((new LoggingWrapper(mapper)), *it); //replaced with the line below to stop memory issues
+    runtime->replace_default_mapper(mapper, *it);
   }
 }
 

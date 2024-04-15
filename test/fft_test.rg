@@ -380,13 +380,13 @@ end
 -- Main function
 -- __demand(__inner, __replicable)
 task main()
-  --test1d_real()
-  --test1d_float()
-  --test1d_float_real()
+  test1d_real()
+  test1d_float()
+  test1d_float_real()
   test1d()
   --test1d_distrib()
-  --test2d()
-  --test3d()
+  test2d()
+  test3d()
   --test3d_batch()
   --FFTW R2C batched is not working: seg faults now. GPU mode is OK. 
   --test3d_batch_real()

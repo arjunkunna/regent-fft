@@ -21,15 +21,15 @@ sudo apt-get install -qq cuda-toolkit-12-2
 sudo apt-get install nvidia-utils-515
 sudo apt install -y libjemalloc2 # valgrind
 
-LIBJEMALLOC_SO="libjemalloc.so.2"
-echo "Checking libjemalloc.so.2"
-LIBJEMALLOC_SO_PATH="$(whereis -b "$LIBJEMALLOC_SO" | cut -d ' ' -f2 | tr -d '\n')"
-if [[ -n $LIBJEMALLOC_SO_PATH ]]; then
-    echo "Found: $LIBJEMALLOC_SO_PATH"
-else
-    echo "Error: $LIBJEMALLOC_SO not found"
-    exit 1
-fi
+#LIBJEMALLOC_SO="libjemalloc.so.2"
+#echo "Checking libjemalloc.so.2"
+#LIBJEMALLOC_SO_PATH="$(whereis -b "$LIBJEMALLOC_SO" | cut -d ' ' -f2 | tr -d '\n')"
+#if [[ -n $LIBJEMALLOC_SO_PATH ]]; then
+#    echo "Found: $LIBJEMALLOC_SO_PATH"
+#else
+#    echo "Error: $LIBJEMALLOC_SO not found"
+#    exit 1
+#fi
 
 export CUDA_PATH="/usr/local/cuda"
 export CUDA="/usr/local/cuda"
@@ -59,4 +59,5 @@ nvcc --version
 git clone https://github.com/StanfordLegion/legion.git
 CC=gcc CXX=g++ DEBUG=${DEBUG:-0} USE_GASNET=0 USE_CUDA=1 ./legion/language/scripts/setup_env.py
 ./install.py
-LD_PRELOAD="$LIBJEMALLOC_SO_PATH" ./legion/language/regent.py test/fft_test.rg -fgpu cuda -fgpu-offline 1 -fgpu-arch pascal
+#LD_PRELOAD="$LIBJEMALLOC_SO_PATH" ./legion/language/regent.py test/fft_test.rg -fgpu cuda -fgpu-offline 1 -fgpu-arch pascal
+./legion/language/regent.py test/fft_test.rg -fgpu cuda -fgpu-offline 1 -fgpu-arch pascal

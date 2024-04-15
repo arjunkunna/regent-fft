@@ -704,7 +704,6 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     end
   end
 
-
   --destroy_plan task is a demand_(__inline tasks). This means that if the user wants it to execute it in a separate task, they must wrap the task themselves -- this is what destroy_plan_task does.
   task iface.destroy_plan_task(plan : region(ispace(int1d), iface.plan))
   where reads writes(plan) do

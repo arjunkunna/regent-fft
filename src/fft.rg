@@ -12,6 +12,7 @@ local gpu_available = gpuhelper.check_gpu_available()
 local c = regentlib.c
 local fftw_c = terralib.includec("fftw3.h")
 terralib.linklibrary("libfftw3.so")
+--terralib.linklibrary("libfftw3f.so")
 
 --Import cuFFT API
 local cufft_c

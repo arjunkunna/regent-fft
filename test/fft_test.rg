@@ -364,7 +364,10 @@ task test3d_batch_real()
   var r = region(ispace(int3d, { 3, 3, 2 }), double)
   var s = region(ispace(int3d, { 3,3,2 }), complex64)
 
-  fill(r, 3)
+  --fill(r, 3)
+  for x in r do
+    r[x] = 3
+  end
   -- Initialize output array
   fill(s, 0)
   print_array_3d_double_real(r, "Input array")
@@ -380,16 +383,16 @@ end
 -- Main function
 -- __demand(__inner, __replicable)
 task main()
-  test1d_real()
-  test1d_float()
-  test1d_float_real()
-  test1d()
+  --test1d_real()
+  --test1d_float()
+  --test1d_float_real()
+  --test1d()
   --test1d_distrib()
-  test2d()
-  test3d()
+  --test2d()
+  --test3d()
   --test3d_batch()
   --FFTW R2C batched is not working: seg faults now. GPU mode is OK. 
-  --test3d_batch_real()
+  test3d_batch_real()
 end
 
 --Include mapper

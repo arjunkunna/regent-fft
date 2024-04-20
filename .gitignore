@@ -2,3 +2,8 @@
 
 /fftw-*
 env.sh
+valgrind*
+gdb*
+*.txt
+*.log
+*.pdf

@@ -56,7 +56,7 @@ Then, run your `.rg` script, which can be set up using the instructions in the
 ../legion/language/regent.py test/fft_test.rg
 ```
 
-If operating in sapling, be sure to do the following on startup:
+If operating in sapling, the following flow will likely be typical for subsequent usages:
 
 ```shell
 ssh <username>@sapling.stanford.edu

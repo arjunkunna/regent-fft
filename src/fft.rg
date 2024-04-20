@@ -125,7 +125,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     return result
   end
 
-  -- FIXME: Keep this in sync with default_mapper.h
+  -- Note from Elliott: Keep this in sync with default_mapper.h
   local DEFAULT_TUNABLE_NODE_COUNT = 0
   local DEFAULT_TUNABLE_LOCAL_CPUS = 1
   local DEFAULT_TUNABLE_LOCAL_GPUS = 2

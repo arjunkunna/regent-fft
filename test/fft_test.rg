@@ -35,6 +35,7 @@ where reads (input) do
   format.println("]\n")
 end
 
+-- Task to print out input or output array with fieldspace double
 __demand(__inline, __leaf)
 task print_array_double_real(input : region(ispace(int1d), double), arrayName: rawstring)
 where reads (input) do
@@ -46,6 +47,8 @@ where reads (input) do
   format.println("]\n")
 end
 
+
+-- Task to print out input or output array with fieldspace float
 __demand(__inline, __leaf)
 task print_array_float_real(input : region(ispace(int1d), float), arrayName: rawstring)
 where reads (input) do
@@ -58,6 +61,7 @@ where reads (input) do
 end
 
 
+-- Task to print out input or output 2D array with fieldspace complex64
 task print_array_2d_double_complex(input : region(ispace(int2d), complex64), arrayName: rawstring)
 where reads (input) do
   format.println("\n{} = [", arrayName)
@@ -69,6 +73,7 @@ where reads (input) do
   format.println("]\n")
 end
 
+-- Task to print out input or output 3D array with fieldspace complex64
 task print_array_3d_double_complex(input : region(ispace(int3d), complex64), arrayName: rawstring)
 where reads (input) do
   format.println("\n{} = [", arrayName)
@@ -80,6 +85,7 @@ where reads (input) do
   format.println("]\n")
 end
 
+-- Task to print out input or output 3D array with fieldspace double
 task print_array_3d_double_real(input : region(ispace(int3d), double), arrayName: rawstring)
 where reads (input) do
   format.println("\n{} = [", arrayName)
@@ -110,7 +116,7 @@ end
 
 ----SET UP INTERFACES----
 
---function fft.generate_fft_interface(itype, dtype): itype = int1d, dtype = complex64, dim = itype.dim =1
+--Usage: function fft.generate_fft_interface(itype, dtype): itype = int1d, dtype = complex64, dim = itype.dim =1
 local fft1d = fft.generate_fft_interface(int1d, complex64, complex64)
 local fft2d = fft.generate_fft_interface(int2d, complex64, complex64)
 local fft3d = fft.generate_fft_interface(int3d, complex64, complex64)
@@ -127,7 +133,8 @@ local fft3d_batch_real = fft.generate_fft_interface(int3d, double, complex64)
 
 -----TEST TASKS-----
 
--- __demand(__inline)
+--Testing 1D double to complex64 transform
+__demand(__inline)
 task test1d_real()
   format.println("Running test1d real...")
   format.println("Creating input and output arrays...")
@@ -159,8 +166,8 @@ task test1d_real()
   fft1d_real.destroy_plan(p)
 end
 
-
--- __demand(__inline)
+--Testing 1D float to complex32 transform
+__demand(__inline)
 task test1d_float_real()
   format.println("Running test1d float...")
   format.println("Creating input and output arrays...")
@@ -193,8 +200,8 @@ task test1d_float_real()
   fft1d_float_real.destroy_plan(p)
 end
 
-
--- __demand(__inline)
+--Testing 1D complex32 to complex32 transform
+__demand(__inline)
 task test1d_float()
   format.println("Running test1d float...")
   format.println("Creating input and output arrays...")
@@ -230,8 +237,8 @@ task test1d_float()
   fft1d_float.destroy_plan(p)
 end
 
-
--- __demand(__inline)
+--Testing 1D complex64 to complex64 transform
+__demand(__inline)
 task test1d()
   format.println("Running test1d...")
   format.println("Creating input and output arrays...")
@@ -296,7 +303,8 @@ task test1d_distrib()
   fft1d.destroy_plan_distrib(p, p_part)
 end
 
--- __demand(__inline)
+--Testing 2D complex64 to complex64 transform
+__demand(__inline)
 task test2d()
   var r = region(ispace(int2d, { 2, 2 }), complex64)
   var s = region(ispace(int2d, { 2, 2 }), complex64)
@@ -313,6 +321,7 @@ task test2d()
   fft2d.destroy_plan(p)
 end
 
+--Testing 3D complex64 to complex64 transform
 __demand(__inline)
 task test3d()
   format.println("Running test3d...")
@@ -333,7 +342,8 @@ task test3d()
   format.println("Completed test3d...")
 end
 
--- __demand(__inline)
+--Testing batched complex64 to complex64 transform
+__demand(__inline)
 task test3d_batch()
   -- Initialize input and output arrays
   var r = region(ispace(int3d, { 3, 3, 2 }), complex64)
@@ -358,7 +368,8 @@ task test3d_batch()
   fft3d_batch.destroy_plan(p)
 end
 
--- __demand(__inline)
+--Testing batched double to complex64 transforms
+__demand(__inline)
 task test3d_batch_real()
   -- Initialize input and output arrays
   var r = region(ispace(int3d, { 3, 3, 2 }), double)
@@ -383,14 +394,14 @@ end
 -- Main function
 -- __demand(__inner, __replicable)
 task main()
-  --test1d_real()
-  --test1d_float()
-  --test1d_float_real()
-  --test1d()
-  --test1d_distrib()
-  --test2d()
-  --test3d()
-  --test3d_batch()
+  test1d_real()
+  test1d_float()
+  test1d_float_real()
+  test1d()
+  test1d_distrib()
+  test2d()
+  test3d()
+  test3d_batch()
   --FFTW R2C batched is not working: seg faults now. GPU mode is OK. 
   test3d_batch_real()
 end

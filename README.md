@@ -28,13 +28,13 @@ Batched transforms are also supported.
 
 ### Installing
 
-First, make sure you have Regent installed. If you are using Sapling, please refer to the [Sapling guide](https://github.com/StanfordLegion/sapling-guide)). Note that you will want to load the following modules instead:
+First, make sure you have Regent installed. (If you are using Sapling, please refer to the [Sapling guide](https://github.com/StanfordLegion/sapling-guide)). Note that you will want to load the following modules instead:
 
 ```shell
 module load slurm mpi cmake cuda llvm
 ```
 
-Otherwise, refer to the Regent installation instructions [here](https://regent-lang.org/install/) or the Legion ones [here](https://legion.stanford.edu/starting/)
+Otherwise, refer to the Regent installation instructions [here](https://regent-lang.org/install/) or the Legion ones [here](https://legion.stanford.edu/starting/).
 
 Then, clone the repo:
 

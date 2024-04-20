@@ -71,11 +71,12 @@ source env.sh
 
 ### Executing program
 
-There are 3 possible modes:
+There are 4 possible modes:
 
 1. GPU vs. CPU
 2. Complex-to-Complex vs. Real-to-Complex
 3. Float vs. Double (Float only supported in GPU mode)
+4. Batched mode (supported for all of the above)
 
 API usage generally follows the following steps.
 
@@ -214,10 +215,10 @@ features that may be helpful.
 
 ## Version History
 
-- 1.0
-  - Initial Release - Supports CPU and single-GPU transforms for 1D, 2D, and 3D.
-  - Supports Real-to-Complex and Complex-to-Complex transforms for both CPU (complex64 only) and GPU (complex32 and complex64).
-  - Supports batched transforms: both R2C and C2C (complex32 and complex64) for GPUs, and R2C and C2C (only complex64) for CPUs.
+- 1.0: Initial Release (Apr 2024)
+    - Supports CPU and single-GPU transforms for 1D, 2D, and 3D.
+    - Supports Real-to-Complex and Complex-to-Complex transforms for both CPU (complex64 only) and GPU (complex32 and complex64).
+    - Supports batched transforms: both R2C and C2C (complex32 and complex64) for GPUs, and R2C and C2C (only complex64) for CPUs.
 
 ## Additional Resources
 

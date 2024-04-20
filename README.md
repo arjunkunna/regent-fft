@@ -217,7 +217,7 @@ features that may be helpful.
 - 1.0
   - Initial Release - Supports CPU and single-GPU transforms for 1D, 2D, and 3D.
   - Supports Real-to-Complex and Complex-to-Complex transforms for both CPU (complex64 only) and GPU (complex32 and complex64).
-  - Supports batched transforms: both R2C and C2C (complex32 and complex64) for GPUs, and only C2C (and only complex64) for CPUs.
+  - Supports batched transforms: both R2C and C2C (complex32 and complex64) for GPUs, and R2C and C2C (only complex64) for CPUs.
 
 ## Additional Resources
 

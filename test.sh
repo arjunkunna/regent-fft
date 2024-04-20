@@ -7,29 +7,19 @@ export TERRA_PATH="$TERRA_PATH;$PWD/src/?.rg"
 
 set -ex
 
-#sudo apt-get update -qq
-#sudo apt-get install -qq software-properties-common
+sudo apt-get update -qq
+sudo apt-get install -qq software-properties-common
 
-#wget -nv https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin
-#sudo mv cuda-ubuntu2204.pin /etc/apt/preferences.d/cuda-repository-pin-600
-#sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub
-#sudo add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /"
+wget -nv https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin
+sudo mv cuda-ubuntu2204.pin /etc/apt/preferences.d/cuda-repository-pin-600
+sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub
+sudo add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /"
 
-#sudo apt-get install nvidia-driver-535
-#sudo apt-get update -qq
-#sudo apt-get install -qq cuda-toolkit-12-2
-#sudo apt-get install nvidia-utils-515
-#sudo apt install -y libjemalloc2 # valgrind
-
-#LIBJEMALLOC_SO="libjemalloc.so.2"
-#echo "Checking libjemalloc.so.2"
-#LIBJEMALLOC_SO_PATH="$(whereis -b "$LIBJEMALLOC_SO" | cut -d ' ' -f2 | tr -d '\n')"
-#if [[ -n $LIBJEMALLOC_SO_PATH ]]; then
-#    echo "Found: $LIBJEMALLOC_SO_PATH"
-#else
-#    echo "Error: $LIBJEMALLOC_SO not found"
-#    exit 1
-#fi
+sudo apt-get install nvidia-driver-535
+sudo apt-get update -qq
+sudo apt-get install -qq cuda-toolkit-12-2
+sudo apt-get install nvidia-utils-515
+sudo apt install -y libjemalloc2 # valgrind
 
 export CUDA_PATH="/usr/local/cuda"
 export CUDA="/usr/local/cuda"

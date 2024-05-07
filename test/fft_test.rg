@@ -1,104 +1,113 @@
+-- Copyright 2024 Stanford University
+--
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
+--
+--     http://www.apache.org/licenses/LICENSE-2.0
+--
+-- Unless required by applicable law or agreed to in writing, software
+-- distributed under the License is distributed on an "AS IS" BASIS,
+-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-- See the License for the specific language governing permissions and
+-- limitations under the License.
+
 import "regent"
 
 local fft = require("fft")
-
 local cmapper = require("test_mapper")
 local format = require("std/format")
 
---Import cuFFT API
-local cufft_c = terralib.includec("cufftXt.h")
-terralib.linklibrary("libcufft.so")
+-- PRINT FUNCTIONS
 
-----PRINT FUNCTIONS-----
-
--- Task to print out input or output array with fieldspace complex64. Takes a region and a string representing the name of the array
+-- Task to print out input or output array with fieldspace complex64. Takes a
+-- region and a string representing the name of the array
 __demand(__inline, __leaf)
 task print_array_double_complex(input : region(ispace(int1d), complex64), arrayName: rawstring)
 where reads (input) do
-  format.println("\n{} = [", arrayName)
+  format.println("{} = [", arrayName)
   for x in input do
     var currComplex = input[x]
     format.println("{} + {}j, ", currComplex.real, currComplex.imag)
   end
-  format.println("]\n")
+  format.println("]")
 end
 
--- Task to print out input or output array with fieldspace complex32. Takes a region and a string representing the name of the array
+-- Task to print out input or output array with fieldspace complex32. Takes a
+-- region and a string representing the name of the array
 __demand(__inline, __leaf)
 task print_array_float_complex(input : region(ispace(int1d), complex32), arrayName: rawstring)
 where reads (input) do
-  format.println("\n{} = [", arrayName)
+  format.println("{} = [", arrayName)
   for x in input do
     var currComplex = input[x]
     format.println("{} + {}j, ", currComplex.real, currComplex.imag)
   end
-  format.println("]\n")
+  format.println("]")
 end
 
 -- Task to print out input or output array with fieldspace double
 __demand(__inline, __leaf)
 task print_array_double_real(input : region(ispace(int1d), double), arrayName: rawstring)
 where reads (input) do
-  format.println("\n{} = [", arrayName)
+  format.println("{} = [", arrayName)
   for x in input do
     var currInt = input[x]
     format.println("{}, ", currInt)
   end
-  format.println("]\n")
+  format.println("]")
 end
-
 
 -- Task to print out input or output array with fieldspace float
 __demand(__inline, __leaf)
 task print_array_float_real(input : region(ispace(int1d), float), arrayName: rawstring)
 where reads (input) do
-  format.println("\n{} = [", arrayName)
+  format.println("{} = [", arrayName)
   for x in input do
     var currInt = input[x]
-    format.println("{}, ", currInt)
+    format.println("{},", currInt)
   end
-  format.println("]\n")
+  format.println("]")
 end
-
 
 -- Task to print out input or output 2D array with fieldspace complex64
 task print_array_2d_double_complex(input : region(ispace(int2d), complex64), arrayName: rawstring)
 where reads (input) do
-  format.println("\n{} = [", arrayName)
+  format.println("{} = [", arrayName)
   format.println("Bounds = {}", input.bounds)
   for x in input do
     var currComplex = input[x]
-    format.println("index {}: {} + {}j, ", x, currComplex.real, currComplex.imag)
+    format.println("index {}: {} + {}j,", x, currComplex.real, currComplex.imag)
   end
-  format.println("]\n")
+  format.println("]")
 end
 
 -- Task to print out input or output 3D array with fieldspace complex64
 task print_array_3d_double_complex(input : region(ispace(int3d), complex64), arrayName: rawstring)
 where reads (input) do
-  format.println("\n{} = [", arrayName)
+  format.println("{} = [", arrayName)
   format.println("Bounds = {}", input.bounds)
   for x in input do
     var currComplex = input[x]
-    format.println("index {}: {} + {}j, ", x, currComplex.real, currComplex.imag)
+    format.println("index {}: {} + {}j,", x, currComplex.real, currComplex.imag)
   end
-  format.println("]\n")
+  format.println("]")
 end
 
 -- Task to print out input or output 3D array with fieldspace double
 task print_array_3d_double_real(input : region(ispace(int3d), double), arrayName: rawstring)
 where reads (input) do
-  format.println("\n{} = [", arrayName)
+  format.println("{} = [", arrayName)
   format.println("Bounds = {}", input.bounds)
   for x in input do
     var currInt = input[x]
-    format.println("{}, ", currInt)
+    format.println("{},", currInt)
   end
-  format.println("]\n")
+  format.println("]")
 end
 
---task compare_regions_double_complex(r1 : region(ispace(int1d), complex64), r2 : region(ispace(int1d), complex64))
---where reads (r1, r2) do
+-- task compare_regions_double_complex(r1 : region(ispace(int1d), complex64), r2 : region(ispace(int1d), complex64))
+-- where reads (r1, r2) do
 --  var regions_same = true
 --  for x in r1 do
 --    if (r1[x].real == r2[x].real) and (r1[x].imag == r2[x].imag) then
@@ -112,11 +121,11 @@ end
 --    format.println("Regions are the same")
 --  end
 --  return regions_same
---end
+-- end
 
-----SET UP INTERFACES----
+-- SET UP INTERFACES
 
---Usage: function fft.generate_fft_interface(itype, dtype): itype = int1d, dtype = complex64, dim = itype.dim =1
+-- Usage: function fft.generate_fft_interface(itype, dtype): itype = int1d, dtype = complex64, dim = itype.dim =1
 local fft1d = fft.generate_fft_interface(int1d, complex64, complex64)
 local fft2d = fft.generate_fft_interface(int2d, complex64, complex64)
 local fft3d = fft.generate_fft_interface(int3d, complex64, complex64)
@@ -131,151 +140,85 @@ local fft1d_float_real = fft.generate_fft_interface(int1d, float, complex32)
 local fft3d_batch = fft.generate_fft_interface(int3d, complex64, complex64)
 local fft3d_batch_real = fft.generate_fft_interface(int3d, double, complex64)
 
------TEST TASKS-----
+-- TEST TASKS
 
---Testing 1D double to complex64 transform
+-- Testing 1D double to complex64 transform
 __demand(__inline)
 task test1d_real()
-  format.println("Running test1d real...")
-  format.println("Creating input and output arrays...")
-
-  -- Initialize input and output arrays
   var r = region(ispace(int1d, 3), double)
   var s = region(ispace(int1d, 3), complex64)
+  var p = region(ispace(int1d, 1), fft1d_real.plan)
 
   fill(r, 3)
-
-  -- Initialize output array
   fill(s, 0)
   print_array_double_real(r, "Input array")
 
-  -- Initial plan region
-  var p = region(ispace(int1d, 1), fft1d_real.plan)
-  format.println("Calling make_plan...")
   fft1d_real.make_plan(r, s, p)
-
-  -- Execute plan
-  format.println("Calling execute_plan...\n")
   fft1d_real.execute_plan_task(r, s, p)
-
-  -- Print Output
   print_array_double_complex(s, "Output array")
-
-  -- Destroy plan
-  format.println("Calling destroy_plan...\n")
   fft1d_real.destroy_plan(p)
 end
 
---Testing 1D float to complex32 transform
+-- Testing 1D float to complex32 transform
 __demand(__inline)
 task test1d_float_real()
-  format.println("Running test1d float...")
-  format.println("Creating input and output arrays...")
-
-  -- Initialize input and output arrays
   var r = region(ispace(int1d, 3), float)
   var s = region(ispace(int1d, 3), complex32)
+  var p = region(ispace(int1d, 1), fft1d_float_real.plan)
 
   fill(r, 3)
-
-  -- Initialize output array
   fill(s, 0)
   print_array_float_real(r, "Input array")
 
-  -- Initial plan region
-  var p = region(ispace(int1d, 1), fft1d_float_real.plan)
-  format.println("Calling make_plan...")
   fft1d_float_real.make_plan(r, s, p)
-
-  -- Execute plan
-  format.println("Calling execute_plan...\n")
   fft1d_float_real.execute_plan_task(r, s, p)
-
-  -- Print Output
   print_array_float_complex(s, "Output array")
-
-
-  -- Destroy plan
-  format.println("Calling destroy_plan...\n")
   fft1d_float_real.destroy_plan(p)
 end
 
---Testing 1D complex32 to complex32 transform
+-- Testing 1D complex32 to complex32 transform
 __demand(__inline)
 task test1d_float()
-  format.println("Running test1d float...")
-  format.println("Creating input and output arrays...")
-
-  -- Initialize input and output arrays
   var r = region(ispace(int1d, 3), complex32)
   var s = region(ispace(int1d, 3), complex32)
+  var p = region(ispace(int1d, 1), fft1d_float.plan)
 
   for x in r do
     r[x].real = 3
     r[x].imag = 3
   end
 
-  -- Initialize output array
   fill(s, 0)
   print_array_float_complex(r, "Input array")
 
-  -- Initial plan region
-  var p = region(ispace(int1d, 1), fft1d_float.plan)
-  format.println("Calling make_plan...")
   fft1d_float.make_plan(r, s, p)
-
-  -- Execute plan
-  format.println("Calling execute_plan...\n")
   fft1d_float.execute_plan_task(r, s, p)
-
-  -- Print Output
   print_array_float_complex(s, "Output array")
-
-
-  -- Destroy plan
-  format.println("Calling destroy_plan...\n")
   fft1d_float.destroy_plan(p)
 end
 
---Testing 1D complex64 to complex64 transform
+-- Testing 1D complex64 to complex64 transform
 __demand(__inline)
 task test1d()
   format.println("Running test1d...")
-  format.println("Creating input and output arrays...")
 
-  -- Initialize input and output arrays
   var r = region(ispace(int1d, 5), complex64)
   var s = region(ispace(int1d, 5), complex64)
-
-  r[0].real = 3
-  r[0].imag = 3
+  var p = region(ispace(int1d, 1), fft1d.plan)
 
   for x in r do
     r[x].real = 3
     r[x].imag = 3
   end
 
-  -- Initialize output array
   fill(s, 0)
   print_array_double_complex(r, "Input array")
 
-  -- Initial plan region
-  var p = region(ispace(int1d, 1), fft1d.plan)
-  format.println("Calling make_plan...")
   fft1d.make_plan(r, s, p)
-
-  -- Execute plan
-  format.println("Calling execute_plan...\n")
   fft1d.execute_plan_task(r, s, p)
-
-  -- Print Output
   print_array_double_complex(s, "Output array")
-
-  -- Destroy plan
-  format.println("Calling destroy_plan...\n")
   fft1d.destroy_plan(p)
 end
-
 
 __demand(__inline)
 task test1d_distrib()
@@ -303,25 +246,28 @@ task test1d_distrib()
   fft1d.destroy_plan_distrib(p, p_part)
 end
 
---Testing 2D complex64 to complex64 transform
+-- Testing 2D complex64 to complex64 transform
 __demand(__inline)
 task test2d()
   var r = region(ispace(int2d, { 2, 2 }), complex64)
   var s = region(ispace(int2d, { 2, 2 }), complex64)
+  var p = region(ispace(int1d, 1), fft2d.plan)
+
   for x in r do
     r[x].real = 5
     r[x].imag = 5
   end
   fill(s, 1)
+
   print_array_2d_double_complex(r, "Input array")
-  var p = region(ispace(int1d, 1), fft2d.plan)
+
   fft2d.make_plan(r, s, p)
   fft2d.execute_plan_task(r, s, p)
   print_array_2d_double_complex(s, "Output array")
   fft2d.destroy_plan(p)
 end
 
---Testing 3D complex64 to complex64 transform
+-- Testing 3D complex64 to complex64 transform
 __demand(__inline)
 task test3d()
   format.println("Running test3d...")
@@ -342,57 +288,48 @@ task test3d()
   format.println("Completed test3d...")
 end
 
---Testing batched complex64 to complex64 transform
+-- Testing batched complex64 to complex64 transform
 __demand(__inline)
 task test3d_batch()
-  -- Initialize input and output arrays
   var r = region(ispace(int3d, { 3, 3, 2 }), complex64)
-  var s = region(ispace(int3d, { 3,3,2 }), complex64)
+  var s = region(ispace(int3d, { 3, 3, 2 }), complex64)
+  var p = region(ispace(int1d, 1), fft3d_batch.plan)
 
   for x in r do
     r[x].real = 3
     r[x].imag = 3
   end
 
-  -- Initialize output array
   fill(s, 0)
-
   print_array_3d_double_complex(r, "Input array")
 
-  -- Create plan region and call batch_dft
-  var p = region(ispace(int1d, 1), fft3d_batch.plan)
   fft3d_batch.make_plan_batch(r, s, p)
   fft3d_batch.execute_plan_task(r, s, p)
-
   print_array_3d_double_complex(s, "Output array")
   fft3d_batch.destroy_plan(p)
 end
 
---Testing batched double to complex64 transforms
+-- Testing batched double to complex64 transforms
 __demand(__inline)
 task test3d_batch_real()
-  -- Initialize input and output arrays
   var r = region(ispace(int3d, { 3, 3, 2 }), double)
-  var s = region(ispace(int3d, { 3,3,2 }), complex64)
+  var s = region(ispace(int3d, { 3, 3, 2 }), complex64)
+  var p = region(ispace(int1d, 1), fft3d_batch_real.plan)
 
-  --fill(r, 3)
+  -- fill(r, 3)
   for x in r do
     r[x] = 3
   end
-  -- Initialize output array
+
   fill(s, 0)
   print_array_3d_double_real(r, "Input array")
 
-  -- Create plan region and call batch_dft
-  var p = region(ispace(int1d, 1), fft3d_batch_real.plan)
   fft3d_batch_real.make_plan_batch(r, s, p)
   fft3d_batch_real.execute_plan_task(r, s, p)
   print_array_3d_double_complex(s, "Output array")
   fft3d_batch_real.destroy_plan(p)
 end
 
--- Main function
--- __demand(__inner, __replicable)
 task main()
   test1d_real()
   test1d_float()
@@ -405,5 +342,4 @@ task main()
   test3d_batch_real()
 end
 
---Include mapper
 regentlib.start(main, cmapper.register_mappers)

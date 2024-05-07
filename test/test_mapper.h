@@ -26,4 +26,4 @@ void register_mappers();
 }
 #endif
 
-#endif // __TEST_H__
+#endif  // __TEST_H__

@@ -270,7 +270,6 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
       -- GPU not identified: return error
       else
-        format.println("GPU processor not identified: TOC_PROC not equal to processor kind")
         regentlib.assert(false, "make_plan_gpu must be executed on a GPU processor")
       end
     end

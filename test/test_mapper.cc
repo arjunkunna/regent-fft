@@ -33,9 +33,9 @@ class FFTTestMapper : public DefaultMapper {
 public:
   FFTTestMapper(MapperRuntime *rt, Machine machine, Processor local,
                 const char *mapper_name);
-  virtual Memory default_policy_select_target_memory(
+  Memory default_policy_select_target_memory(
       MapperContext ctx, Processor target_proc, const RegionRequirement &req,
-      MemoryConstraint mc = MemoryConstraint());
+      MemoryConstraint mc = MemoryConstraint()) override;
 };
 
 // Constructor

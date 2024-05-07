@@ -15,5 +15,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Running tests
+      - name: Run clang-format
+        run: |
+          clang-format -i test/*.{h,cc}
+          git status
+          git diff
+
+      - name: Run tests
         run: ./test.sh

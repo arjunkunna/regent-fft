@@ -78,7 +78,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   end
 
   iface.plan = iface_plan
-  iface.plan.__no_field_slicing = true -- don't field slice this struct
+  iface.plan.__no_field_slicing = true
 
   -- Create function that returns a base_pointer to a region with ispace of
   -- dimension d and fspace t d is dimension, t is dtype/region fspace
@@ -89,7 +89,6 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     local raw_rect_ptr = c["legion_accessor_array_" .. d .. "d_raw_rect_ptr"]
     local destroy_accessor = c["legion_accessor_array_" .. d .. "d_destroy"]
 
-    -- Function to get base pointer of region: returns base_pointer
     local terra get_base(rect : rect_t, physical : c.legion_physical_region_t, field : c.legion_field_id_t)
       var subrect : rect_t
       var offsets : c.legion_byte_offset_t[d]
@@ -130,6 +129,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   local rect_out_t, get_base_out, get_offset_out = make_get_base(dim, dtype_out) --get_base returns a base pointer to a region with fspace dtype
 
   -- Takes a c.legion_runtime_t and returns c.legion_runtime_get_executing_processor(runtime, ctx)
+  -- Used to branch on CPU vs GPU execution inside tasks
   local terra get_executing_processor(runtime : c.legion_runtime_t)
     var ctx = c.legion_runtime_get_context()
     var result = c.legion_runtime_get_executing_processor(runtime, ctx)
@@ -137,7 +137,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     return result
   end
 
-  -- Note from Elliott: Keep this in sync with default_mapper.h
+  -- NOTE: Keep this in sync with default_mapper.h
   local DEFAULT_TUNABLE_NODE_COUNT = 0
   local DEFAULT_TUNABLE_LOCAL_CPUS = 1
   local DEFAULT_TUNABLE_LOCAL_GPUS = 2
@@ -154,7 +154,6 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   task iface.get_tunable(tunable_id : int)
     var f = c.legion_runtime_select_tunable_value(__runtime(), __context(), tunable_id, 0, 0)
     var n = __future(int64, f)
-    -- c.legion_future_destroy(f) -- Comment from Elliott: I thought Regent was supposed to copy on assignment, but that seems not to happen here, so this would result in a double destroy if we free here.
     return n
   end
 
@@ -163,32 +162,31 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     return iface.get_tunable(DEFAULT_TUNABLE_NODE_COUNT)
   end
 
-  -- Get the number of GPUs
   __demand(__inline)
   task iface.get_num_local_gpus()
     return iface.get_tunable(DEFAULT_TUNABLE_LOCAL_GPUS)
   end
 
-  -- Task to return pointer to plan. Takes plan region and returns pointer to plan. Calls get_base_plan made above.
    __demand(__inline)
   task iface.get_plan(plan : region(ispace(int1d), iface.plan), check : bool) : &iface.plan
   where reads(plan) do
     format.println("In get_plan...")
 
-    -- Get physical region
-    -- __physical(r.{f, g, ...}) returns an array of physical regions (legion_physical_region_t) for r, one per field, for fields f, g, etc. in the order that the fields are listed in the call.
+    -- Get physical region __physical(r.{f, g, ...}) returns an array of
+    -- physical regions (legion_physical_region_t) for r, one per field, for
+    -- fields f, g, etc. in the order that the fields are listed in the call.
     var pr = __physical(plan)[0] --returns first physical region
 
     regentlib.assert(c.legion_physical_region_get_memory_count(pr) == 1, "plan instance has more than one memory?")
 
     -- Ensure that plan is in the right kind of memory
-    var mem_kind = c.legion_memory_kind(c.legion_physical_region_get_memory(pr, 0)) --legion_memory_t legion_physical_region_get_memory(legion_physical_region_t handle, size_t index); --legion_memory_kind_t legion_memory_kind(legion_memory_t mem);
+    var mem_kind = c.legion_memory_kind(c.legion_physical_region_get_memory(pr, 0))
     regentlib.assert(mem_kind == c.SYSTEM_MEM or mem_kind == c.REGDMA_MEM or mem_kind == c.Z_COPY_MEM, "plan instance must be stored in sysmem, regmem, or zero copy mem")
 
     -- Get pointer to plan: get_base_plan returns a base_pointer to a region with fspace iface.plan
     format.println("Getting plan_base...")
-    var plan_base = get_base_plan(rect_plan_t(plan.ispace.bounds), __physical(plan)[0], __fields(plan)[0]) --get_base_plan returns a base_pointer to a region with fspace iface.plan
-    var i = c.legion_processor_address_space(get_executing_processor(__runtime())) --legion_address_space_t legion_processor_address_space(legion_processor_t proc);
+    var plan_base = get_base_plan(rect_plan_t(plan.ispace.bounds), __physical(plan)[0], __fields(plan)[0])
+    var i = c.legion_processor_address_space(get_executing_processor(__runtime()))
 
     var p : &iface.plan
     var bounds = plan.ispace.bounds
@@ -215,7 +213,6 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   if gpu_available then
     __demand(__cuda, __leaf)
     task make_plan_gpu(input : region(ispace(itype), dtype_in), output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan), address_space : c.legion_address_space_t)
-
     where reads writes(input, output, plan) do
       format.println("In iface.make_plan_gpu...")
 
@@ -307,8 +304,12 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     -- dtype size is 8 for complex32 and 16 for complex64
     format.println("Size of dtype is {}", dtype_size)
 
-
-    --  Call fftw_c.fftw_plan_dft: fftw_plan_dft_1d(int n, fftw_complex *in, fftw_complex *out,int sign, unsigned flags). n is the size of transform, in and out are pointers to the input and output arrays. Sign is the sign of the exponent in the transform, can either be FFTW_FORWARD (1) or FFTW_BACKWARD (-1). Flags: FFTW_ESTIMATE, on the contrary, does not run any computation
+    -- Call fftw_c.fftw_plan_dft: fftw_plan_dft_1d(int n, fftw_complex *in,
+    -- fftw_complex *out,int sign, unsigned flags). n is the size of transform,
+    -- in and out are pointers to the input and output arrays. Sign is the sign
+    -- of the exponent in the transform, can either be FFTW_FORWARD (1) or
+    -- FFTW_BACKWARD (-1). Flags: FFTW_ESTIMATE, on the contrary, does not run
+    -- any computation
     format.println("Calling fftw_plan_dft to store fftw_plan in p.p...")
 
     -- R2C: Float to Complex32
@@ -353,7 +354,6 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     end
   end
 
-
   -- Task: make_plan_batch in GPU version. Calls cufftPlanMany and stores plan in cufft_p
   local make_plan_gpu_batch
   if gpu_available then
@@ -383,19 +383,25 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
         var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0])
         var lo = input.ispace.bounds.lo:to_point()
         var hi = input.ispace.bounds.hi:to_point()
-        var n : int[dim] --n is an array of size dim with the size of each dimension in the entries
+        var n : int[dim]
         ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
 
-        -- Define 'n' array: n is an array of size rank, describing the size of each dimension. For batched transforms, we want to exclude the last dimension as that is the number of batches
-        -- AK Note: There must be a better way to copy/slice arrays in regent instead of naively using this for loop...
+        -- Define 'n' array: n is an array of size rank, describing the size of
+        -- each dimension. For batched transforms, we want to exclude the last
+        -- dimension as that is the number of batches.
+        --
+        -- AK Note: There must be a better way to copy/slice arrays in regent
+        -- instead of naively using this for loop.
         var n_batch : int[dim-1]
         for i = 0, dim do
           n_batch[i] = n[i]
         end
 
-        -- Set idist: idist is the distance between the first element of two consecutive batches
-        -- In a transform where each batch is a 256x256 complex64 transform, offset_1 will be 16, offset_2 will be 16*256, and offet_3 willbe 16*256*256
-        -- idist should be 256*256 in this case, so we want offset_3/offset_1
+        -- Set idist: idist is the distance between the first element of two
+        -- consecutive batches. In a transform where each batch is a 256x256
+        -- complex64 transform, offset_1 will be 16, offset_2 will be 16*256,
+        -- and offet_3 willbe 16*256*256. idist should be 256*256 in this case,
+        -- so we want offset_3/offset_1.
         var offset_in = get_offset_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0])
         var offset_1 = offset_in[0].offset
         var offset_2 = offset_in[1].offset
@@ -466,17 +472,18 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     -- Get pointer to plan
     format.println("Calling get_plan...")
     var p = iface.get_plan(plan, false)
-    var address_space = c.legion_processor_address_space(get_executing_processor(__runtime())) --legion_processor_address_space: takes a legion_processor_t proc and returns a legion_address_space_t
+    var address_space = c.legion_processor_address_space(get_executing_processor(__runtime()))
     regentlib.assert(input.ispace.bounds == output.ispace.bounds, "input and output regions must be identical in size")
 
-    -- Get pointers to input and output regions
     var input_base = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0])
     var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0])
     var offset_in = get_offset_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0])
 
-    -- Set idist: idist is the distance between the first element of two consecutive batches
-    -- In a transform where each batch is a 256x256 complex64 transform, offset_1 will be 16, offset_2 will be 16*256, and offet_3 willbe 16*256*256
-    -- idist should be 256*256 in this case, so we want offset_3/offset_1
+    -- Set idist: idist is the distance between the first element of two
+    -- consecutive batches. In a transform where each batch is a 256x256
+    -- complex64 transform, offset_1 will be 16, offset_2 will be 16*256, and
+    -- offet_3 willbe 16*256*256. idist should be 256*256 in this case, so we
+    -- want offset_3/offset_1.
     var offset_1 = offset_in[0].offset
     var offset_2 = offset_in[1].offset
     var offset_3 = offset_in[2].offset
@@ -534,8 +541,12 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       var n : int[dim]
       ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
 
-      -- Define 'n' array: n is an array of size rank, describing the size of each dimension. For batched transforms, we want to exclude the last dimension as that is the number of batches
-      -- AK Note: There must be a better way to copy/slice arrays in regent instead of naively using this for loop...
+      -- Define 'n' array: n is an array of size rank, describing the size of
+      -- each dimension. For batched transforms, we want to exclude the last
+      -- dimension as that is the number of batches
+      --
+      -- AK Note: There must be a better way to copy/slice arrays in regent
+      -- instead of naively using this for loop
       var n_batch : int[dim-1]
       for i = 0, dim do
         n_batch[i] = n[i]
@@ -543,7 +554,8 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
       format.println("fftw_plan_many_dft_r2c: n[0] = {}, n[1] = {}, n[2] = {}, n_batch[0] = {}, n_batch[1] = {}, i_dist = {}", n[0], n[1], n[2], n_batch[0], n_batch[1], i_dist)
 
-      -- AK Note: This is segfaulting now. Complex64 to Complex64 works somehow, even though the call is the same...
+      -- AK Note: This is segfaulting now. Complex64 to Complex64 works somehow,
+      -- even though the call is the same
       p.p = fftw_c.fftw_plan_many_dft_r2c(dim-1, &n_batch[0], n[dim-1], [&double](input_base), &n_batch[0], 1, i_dist, [&fftw_c.fftw_complex](output_base), &n_batch[0], 1, i_dist, fftw_c.FFTW_ESTIMATE)
 
     -- C2C: Complex64 to Complex64
@@ -551,8 +563,12 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       var n : int[dim]
       ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
 
-      -- Define 'n' array: n is an array of size rank, describing the size of each dimension. For batched transforms, we want to exclude the last dimension as that is the number of batches
-      -- AK Note: There must be a better way to copy/slice arrays in regent instead of naively using this for loop...
+      -- Define 'n' array: n is an array of size rank, describing the size of
+      -- each dimension. For batched transforms, we want to exclude the last
+      -- dimension as that is the number of batches
+      --
+      -- AK Note: There must be a better way to copy/slice arrays in regent
+      -- instead of naively using this for loop
       var n_batch : int[dim-1]
       for i = 0, dim do
         n_batch[i] = n[i]
@@ -560,12 +576,13 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
       format.println("n[0] = {}, n[1] = {}, n[2] = {}, n_batch[0] = {}, n_batch[1] = {}, i_dist = {}", n[0], n[1], n[2], n_batch[0], n_batch[1], i_dist)
       p.p = fftw_c.fftw_plan_many_dft(dim-1, &n_batch[0], n[dim-1], [&fftw_c.fftw_complex](input_base), &n_batch[0], 1, i_dist, [&fftw_c.fftw_complex](output_base), &n_batch[0], 1, i_dist,  fftw_c.FFTW_FORWARD, fftw_c.FFTW_ESTIMATE)
-
     end
     p.address_space = address_space
   end
 
-  -- The make_plan tasks above are demand_(__inline tasks). This means that if the user wants it to execute it in a separate task, they must wrap the task themselves -- this is what make_plan_task does.
+  -- The make_plan tasks above are demand_(__inline tasks). This means that if
+  -- the user wants it to execute it in a separate task, they must wrap the task
+  -- themselves -- this is what make_plan_task does.
   task iface.make_plan_task(input : region(ispace(itype), dtype_in), output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan))
   where reads writes(input, output, plan) do
     iface.make_plan(input, output, plan)
@@ -600,24 +617,22 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
   -- EXECUTE PLAN FUNCTIONS
 
-  -- Task to execute plan. Calls cufftExecZ2Z if in GPU mode and fftw_execute_dft if in CPU mode
+  -- Task to execute plan. Calls cufftExecZ2Z if in GPU mode and
+  -- fftw_execute_dft if in CPU mode
    __demand(__inline)
   task iface.execute_plan(input : region(ispace(itype), dtype_in), output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan))
   where reads(input, plan), writes(output) do
     format.println("In iface.execute_plan...")
 
-    -- Get pointer to plan
-    var p = iface.get_plan(plan, true) --task iface.get_plan(plan : region(ispace(int1d), iface.plan), check : bool) : &iface.plan
-
-    -- Get pointers to input and output regions
+    var p = iface.get_plan(plan, true)
     var input_base = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0])
     var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0])
 
     -- Check if we are in GPU or CPU mode
     var proc = get_executing_processor(__runtime())
-    format.println("execute_plan: TOC PROC IS {}",c.TOC_PROC) --TOC = Throughput Oriented Core: Means we have a GPU
+    format.println("execute_plan: TOC PROC IS {}", c.TOC_PROC) -- TOC = Throughput Oriented Core: Means we have a GPU
     format.println("execute_plan: Processor kind is {}", c.legion_processor_kind(proc))
-    format.println("size of dtype is {}", dtype_size) --dtype size is 8 for complex32 and 16 for complex64
+    format.println("size of dtype is {}", dtype_size) -- dtype size is 8 for complex32 and 16 for complex64
 
     -- If in GPU mode, use cufftExec
     if c.legion_processor_kind(proc) == c.TOC_PROC then
@@ -662,25 +677,27 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       --R2C float to complex32: Not supported
       if dtype_size == 8 and real_flag then
         format.println("Executing FFTW R2C Float to Complex32: Not Supported")
-        --fftw_c.fftwf_execute_dft_r2c(p.float_p, [&float](input_base), [&fftw_c.fftwf_complex](output_base))     --void fftw_execute_dft(const fftw_plan p, fftw_complex *in, fftw_complex *out))
+        --fftw_c.fftwf_execute_dft_r2c(p.float_p, [&float](input_base), [&fftw_c.fftwf_complex](output_base))
       -- C2C complex32 to complex32: Not supported
       elseif dtype_size == 8 then
         format.println("Executing FFTW C2C Complex32 to Complex32: Not Supported")
-        -- fftw_c.fftwf_execute_dft(p.float_p, [&fftw_c.fftwf_complex](input_base), [&fftw_c.fftwf_complex](output_base))     --void fftw_execute_dft(const fftw_plan p, fftw_complex *in, fftw_complex *out))
+        -- fftw_c.fftwf_execute_dft(p.float_p, [&fftw_c.fftwf_complex](input_base), [&fftw_c.fftwf_complex](output_base))
       -- R2C double to complex64
       elseif dtype_size == 16 and real_flag then
         format.println("Executing FFTW R2C double to complex64")
-        fftw_c.fftw_execute_dft_r2c(p.p, [&double](input_base), [&fftw_c.fftw_complex](output_base))     --void fftw_execute_dft(const fftw_plan p, fftw_complex *in, fftw_complex *out))
+        fftw_c.fftw_execute_dft_r2c(p.p, [&double](input_base), [&fftw_c.fftw_complex](output_base))
       -- C2C complex64 to complex64
       elseif dtype_size == 16 then
         format.println("Executing FFTW C2C complex64 to complex64")
-        fftw_c.fftw_execute_dft(p.p, [&fftw_c.fftw_complex](input_base), [&fftw_c.fftw_complex](output_base))   --void fftw_execute_dft(const fftw_plan p, fftw_complex *in, fftw_complex *out))
+        fftw_c.fftw_execute_dft(p.p, [&fftw_c.fftw_complex](input_base), [&fftw_c.fftw_complex](output_base))
       end
     end
   end
 
 
-  -- execute_plan tasks are demand_(__inline tasks). This means that if the user wants it to execute it in a separate task, they must wrap the task themselves -- this is what execute_plan_task does.
+  -- execute_plan tasks are demand_(__inline tasks). This means that if the user
+  -- wants it to execute it in a separate task, they must wrap the task
+  -- themselves -- this is what execute_plan_task does.
   __demand(__cuda, __leaf)
   task iface.execute_plan_task(input : region(ispace(itype), dtype_in), output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan))
   where reads(input, plan), reads writes(output) do
@@ -712,7 +729,9 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     end
   end
 
-  -- destroy_plan task is a demand_(__inline tasks). This means that if the user wants it to execute it in a separate task, they must wrap the task themselves -- this is what destroy_plan_task does.
+  -- destroy_plan task is a demand_(__inline tasks). This means that if the user
+  -- wants it to execute it in a separate task, they must wrap the task
+  -- themselves -- this is what destroy_plan_task does.
   task iface.destroy_plan_task(plan : region(ispace(int1d), iface.plan))
   where reads writes(plan) do
     iface.destroy_plan(plan)

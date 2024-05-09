@@ -25,8 +25,7 @@ task print_region_1d_float(title : rawstring, input : region(ispace(int1d), floa
 where reads (input) do
   format.println("{} = [", title)
   for x in input do
-    var currInt = input[x]
-    format.println("{},", currInt)
+    format.println("{},", input[x])
   end
   format.println("]")
 end
@@ -36,8 +35,7 @@ task print_region_1d_double(title : rawstring, input : region(ispace(int1d), dou
 where reads (input) do
   format.println("{} = [", title)
   for x in input do
-    var currInt = input[x]
-    format.println("{},", currInt)
+    format.println("{},", input[x])
   end
   format.println("]")
 end

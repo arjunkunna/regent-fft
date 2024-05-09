@@ -64,6 +64,7 @@ where reads (input) do
   format.println("]")
 end
 
+__demand(__inline, __leaf)
 task print_array_2d_double_complex(input : region(ispace(int2d), complex64), arrayName: rawstring)
 where reads (input) do
   format.println("{} = [", arrayName)
@@ -75,6 +76,7 @@ where reads (input) do
   format.println("]")
 end
 
+__demand(__inline, __leaf)
 task print_array_3d_double_complex(input : region(ispace(int3d), complex64), arrayName: rawstring)
 where reads (input) do
   format.println("{} = [", arrayName)
@@ -86,6 +88,7 @@ where reads (input) do
   format.println("]")
 end
 
+__demand(__inline, __leaf)
 task print_array_3d_double_real(input : region(ispace(int3d), double), arrayName: rawstring)
 where reads (input) do
   format.println("{} = [", arrayName)

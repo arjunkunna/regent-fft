@@ -21,42 +21,9 @@ local format = require("std/format")
 -- PRINT FUNCTIONS
 
 __demand(__inline, __leaf)
-task print_array_double_complex(input : region(ispace(int1d), complex64), arrayName: rawstring)
+task print_region_1d_float(title : rawstring, input : region(ispace(int1d), float))
 where reads (input) do
-  format.println("{} = [", arrayName)
-  for x in input do
-    var currComplex = input[x]
-    format.println("{} + {}j, ", currComplex.real, currComplex.imag)
-  end
-  format.println("]")
-end
-
-__demand(__inline, __leaf)
-task print_array_float_complex(input : region(ispace(int1d), complex32), arrayName: rawstring)
-where reads (input) do
-  format.println("{} = [", arrayName)
-  for x in input do
-    var currComplex = input[x]
-    format.println("{} + {}j, ", currComplex.real, currComplex.imag)
-  end
-  format.println("]")
-end
-
-__demand(__inline, __leaf)
-task print_array_double_real(input : region(ispace(int1d), double), arrayName: rawstring)
-where reads (input) do
-  format.println("{} = [", arrayName)
-  for x in input do
-    var currInt = input[x]
-    format.println("{}, ", currInt)
-  end
-  format.println("]")
-end
-
-__demand(__inline, __leaf)
-task print_array_float_real(input : region(ispace(int1d), float), arrayName: rawstring)
-where reads (input) do
-  format.println("{} = [", arrayName)
+  format.println("{} = [", title)
   for x in input do
     var currInt = input[x]
     format.println("{},", currInt)
@@ -65,34 +32,9 @@ where reads (input) do
 end
 
 __demand(__inline, __leaf)
-task print_array_2d_double_complex(input : region(ispace(int2d), complex64), arrayName: rawstring)
+task print_region_1d_double(title : rawstring, input : region(ispace(int1d), double))
 where reads (input) do
-  format.println("{} = [", arrayName)
-  format.println("Bounds = {}", input.bounds)
-  for x in input do
-    var currComplex = input[x]
-    format.println("index {}: {} + {}j,", x, currComplex.real, currComplex.imag)
-  end
-  format.println("]")
-end
-
-__demand(__inline, __leaf)
-task print_array_3d_double_complex(input : region(ispace(int3d), complex64), arrayName: rawstring)
-where reads (input) do
-  format.println("{} = [", arrayName)
-  format.println("Bounds = {}", input.bounds)
-  for x in input do
-    var currComplex = input[x]
-    format.println("index {}: {} + {}j,", x, currComplex.real, currComplex.imag)
-  end
-  format.println("]")
-end
-
-__demand(__inline, __leaf)
-task print_array_3d_double_real(input : region(ispace(int3d), double), arrayName: rawstring)
-where reads (input) do
-  format.println("{} = [", arrayName)
-  format.println("Bounds = {}", input.bounds)
+  format.println("{} = [", title)
   for x in input do
     var currInt = input[x]
     format.println("{},", currInt)
@@ -100,22 +42,116 @@ where reads (input) do
   format.println("]")
 end
 
--- task compare_regions_double_complex(r1 : region(ispace(int1d), complex64), r2 : region(ispace(int1d), complex64))
--- where reads (r1, r2) do
---  var regions_same = true
---  for x in r1 do
---    if (r1[x].real == r2[x].real) and (r1[x].imag == r2[x].imag) then
---      format.println("indices match")
---    else
---      format.println("Regions are the not the same: r1 real is {}, r2 real is {}, r1 imag is {}, r2 imag is {} for index {}", r1[x].real, r2[x].real, r1[x].imag, r2[x].imag, x)
---      regions_same = false
---    end
---  end
---  if regions_same == true then
---    format.println("Regions are the same")
---  end
---  return regions_same
--- end
+__demand(__inline, __leaf)
+task print_region_1d_complex32(title : rawstring, input : region(ispace(int1d), complex32))
+where reads (input) do
+  format.println("{} = [", title)
+  for x in input do
+    var c = input[x]
+    format.println("{} + {}j,", c.real, c.imag)
+  end
+  format.println("]")
+end
+
+__demand(__inline, __leaf)
+task print_region_1d_complex64(title : rawstring, input : region(ispace(int1d), complex64))
+where reads (input) do
+  format.println("{} = [", title)
+  for x in input do
+    var c = input[x]
+    format.println("{} + {}j,", c.real, c.imag)
+  end
+  format.println("]")
+end
+
+__demand(__inline, __leaf)
+task print_region_2d_complex64(title : rawstring, input : region(ispace(int2d), complex64))
+where reads (input) do
+  format.println("{} = [", title)
+  format.println("Bounds = {}", input.bounds)
+  for x in input do
+    var c = input[x]
+    format.println("index {}: {} + {}j,", x, c.real, c.imag)
+  end
+  format.println("]")
+end
+
+__demand(__inline, __leaf)
+task print_region_3d_double(title : rawstring, input : region(ispace(int3d), double))
+where reads (input) do
+  format.println("{} = [", title)
+  format.println("Bounds = {}", input.bounds)
+  for x in input do
+    format.println("{},", input[x])
+  end
+  format.println("]")
+end
+
+__demand(__inline, __leaf)
+task print_region_3d_complex64(title : rawstring, input : region(ispace(int3d), complex64))
+where reads (input) do
+  format.println("{} = [", title)
+  format.println("Bounds = {}", input.bounds)
+  for x in input do
+    var c = input[x]
+    format.println("index {}: {} + {}j,", x, c.real, c.imag)
+  end
+  format.println("]")
+end
+
+-- COMPARISON FUNCTIONS
+
+__demand(__inline, __leaf)
+task compare_regions_1d_complex32(output : region(ispace(int1d), complex32), expected : region(ispace(int1d), complex32))
+where reads (output, expected) do
+  var status = "PASSED"
+  for x in output do
+    if (output[x].real ~= expected[x].real) or (output[x].imag ~= expected[x].imag) then
+      status = "FAILED"
+      break
+    end
+  end
+  return status
+end
+
+__demand(__inline, __leaf)
+task compare_regions_1d_complex64(output : region(ispace(int1d), complex64), expected : region(ispace(int1d), complex64))
+where reads (output, expected) do
+  var status = "PASSED"
+  for x in output do
+    if (output[x].real ~= expected[x].real) or (output[x].imag ~= expected[x].imag) then
+      status = "FAILED"
+      break
+    end
+  end
+  return status
+end
+
+__demand(__inline, __leaf)
+task compare_regions_2d_complex64(output : region(ispace(int2d), complex64), expected : region(ispace(int2d), complex64))
+where reads (output, expected) do
+  var status = "PASSED"
+  for x in output do
+    if (output[x].real ~= expected[x].real) or (output[x].imag ~= expected[x].imag) then
+      status = "FAILED"
+      break
+    end
+  end
+  return status
+end
+
+__demand(__inline, __leaf)
+task compare_regions_3d_complex64(output : region(ispace(int3d), complex64), expected : region(ispace(int3d), complex64))
+where reads (output, expected) do
+  var status = "PASSED"
+  for x in output do
+    if (output[x].real ~= expected[x].real) or (output[x].imag ~= expected[x].imag) then
+      status = "FAILED"
+      break
+    end
+  end
+  return status
+end
 
 -- INTERFACES
 
@@ -130,42 +166,66 @@ local fft1d_float_complex32 = fft.generate_fft_interface(int1d, float, complex32
 local fft3d_batch_complex64_complex64 = fft.generate_fft_interface(int3d, complex64, complex64)
 local fft3d_batch_double_complex64 = fft.generate_fft_interface(int3d, double, complex64)
 
--- TESTS
+-- TEST FUNCTIONS
 
 __demand(__inline)
-task test_fft1d_double_to_complex64_transform()
-  var r = region(ispace(int1d, 3), double)
-  var s = region(ispace(int1d, 3), complex64)
-  var p = region(ispace(int1d, 1), fft1d_double_complex64.plan)
+task test_1d_float_to_complex32_transform()
+  format.println(">> test_1d_float_to_complex32_transform")
 
-  fill(r, 3)
-  fill(s, 0)
-  print_array_double_real(r, "Input array")
-
-  fft1d_double_complex64.make_plan(r, s, p)
-  fft1d_double_complex64.execute_plan_task(r, s, p)
-  print_array_double_complex(s, "Output array")
-  fft1d_double_complex64.destroy_plan(p)
-end
-
-__demand(__inline)
-task test_fft1d_float_to_complex32_transform()
   var r = region(ispace(int1d, 3), float)
   var s = region(ispace(int1d, 3), complex32)
   var p = region(ispace(int1d, 1), fft1d_float_complex32.plan)
 
   fill(r, 3)
   fill(s, 0)
-  print_array_float_real(r, "Input array")
 
   fft1d_float_complex32.make_plan(r, s, p)
   fft1d_float_complex32.execute_plan_task(r, s, p)
-  print_array_float_complex(s, "Output array")
   fft1d_float_complex32.destroy_plan(p)
+
+  -- Verify
+  var e = region(ispace(int1d, 3), complex32)
+  fill(e, 0)
+
+  print_region_1d_float("Input", r)
+  print_region_1d_complex32("Output", s)
+  print_region_1d_complex32("Expected", e)
+
+  var status = compare_regions_1d_complex32(s, e)
+  format.println("<< test_1d_float_to_complex32_transform [{}]", status)
 end
 
 __demand(__inline)
-task test_fft1d_complex32_to_complex32_transform()
+task test_1d_double_to_complex64_transform()
+  format.println(">> test_1d_double_to_complex64_transform")
+
+  var r = region(ispace(int1d, 3), double)
+  var s = region(ispace(int1d, 3), complex64)
+  var p = region(ispace(int1d, 1), fft1d_double_complex64.plan)
+
+  fill(r, 3)
+  fill(s, 0)
+
+  fft1d_double_complex64.make_plan(r, s, p)
+  fft1d_double_complex64.execute_plan_task(r, s, p)
+  fft1d_double_complex64.destroy_plan(p)
+
+  -- Verify
+  var e = region(ispace(int1d, 3), complex64)
+  fill(e, 0)
+  e[0].real = 9
+
+  print_region_1d_double("Input", r)
+  print_region_1d_complex64("Output", s)
+  print_region_1d_complex64("Expected", e)
+
+  var status = compare_regions_1d_complex64(s, e)
+  format.println("<< test_1d_double_to_complex64_transform [{}]", status)
+end
+
+__demand(__inline)
+task test_1d_complex32_to_complex32_transform()
+  format.println(">> test_1d_complex32_to_complex32_transform")
   var r = region(ispace(int1d, 3), complex32)
   var s = region(ispace(int1d, 3), complex32)
   var p = region(ispace(int1d, 1), fft1d_complex32_complex32.plan)
@@ -174,18 +234,28 @@ task test_fft1d_complex32_to_complex32_transform()
     r[x].real = 3
     r[x].imag = 3
   end
-
   fill(s, 0)
-  print_array_float_complex(r, "Input array")
 
   fft1d_complex32_complex32.make_plan(r, s, p)
   fft1d_complex32_complex32.execute_plan_task(r, s, p)
-  print_array_float_complex(s, "Output array")
   fft1d_complex32_complex32.destroy_plan(p)
+
+  -- Verify
+  var e = region(ispace(int1d, 3), complex32)
+  fill(e, 0)
+
+  print_region_1d_complex32("Input", r)
+  print_region_1d_complex32("Output", s)
+  print_region_1d_complex32("Expected", e)
+
+  var status = compare_regions_1d_complex32(s, e)
+  format.println("<< test_1d_complex32_to_complex32_transform [{}]", status)
 end
 
 __demand(__inline)
-task test_fft1d_complex64_to_complex64_transform()
+task test_1d_complex64_to_complex64_transform()
+  format.println(">> test_1d_complex64_to_complex64_transform")
+
   var r = region(ispace(int1d, 5), complex64)
   var s = region(ispace(int1d, 5), complex64)
   var p = region(ispace(int1d, 1), fft1d_complex64_complex64.plan)
@@ -194,18 +264,30 @@ task test_fft1d_complex64_to_complex64_transform()
     r[x].real = 3
     r[x].imag = 3
   end
-
   fill(s, 0)
-  print_array_double_complex(r, "Input array")
 
   fft1d_complex64_complex64.make_plan(r, s, p)
   fft1d_complex64_complex64.execute_plan_task(r, s, p)
-  print_array_double_complex(s, "Output array")
   fft1d_complex64_complex64.destroy_plan(p)
+
+  -- Verify
+  var e = region(ispace(int1d, 3), complex64)
+  fill(e, 0)
+  e[0].real = 15
+  e[0].imag = 15
+
+  print_region_1d_complex64("Input", r)
+  print_region_1d_complex64("Output", s)
+  print_region_1d_complex64("Expected", e)
+
+  var status = compare_regions_1d_complex64(s, e)
+  format.println("<< test_1d_complex64_to_complex64_transform [{}]", status)
 end
 
 __demand(__inline)
-task test_fft1d_complex64_to_complex64_distrib_transform()
+task test_1d_complex64_to_complex64_distrib_transform()
+  format.println(">> test_1d_complex64_to_complex64_distrib_transform")
+
   var n = fft1d_complex64_complex64.get_num_nodes()
   format.println("Num nodes in distrib is {}", n)
 
@@ -221,19 +303,33 @@ task test_fft1d_complex64_to_complex64_distrib_transform()
     r[x].imag = 4
   end
   fill(s, 0)
-  print_array_double_complex(r, "Input array for distrib")
+
   -- Important: this overwrites r and s!
   fft1d_complex64_complex64.make_plan_distrib(r, r_part, s, s_part, p, p_part)
   __demand(__index_launch)
   for i in r_part.colors do
     fft1d_complex64_complex64.execute_plan_task(r_part[i], s_part[i], p)
   end
-  print_array_double_complex(s, "Output array for distrib")
   fft1d_complex64_complex64.destroy_plan_distrib(p, p_part)
+
+  -- Verify
+  var e = region(ispace(int1d, 3), complex64)
+  fill(e, 0)
+  e[0].real = 12
+  e[0].imag = 12
+
+  print_region_1d_complex64("Input", r)
+  print_region_1d_complex64("Output", s)
+  print_region_1d_complex64("Expected", e)
+
+  var status = compare_regions_1d_complex64(s, e)
+  format.println("<< test_1d_complex64_to_complex64_distrib_transform [{}]", status)
 end
 
 __demand(__inline)
-task test_fft2d_complex64_to_complex64_transform()
+task test_2d_complex64_to_complex64_transform()
+  format.println(">> test_2d_complex64_to_complex64_transform")
+
   var r = region(ispace(int2d, { 2, 2 }), complex64)
   var s = region(ispace(int2d, { 2, 2 }), complex64)
   var p = region(ispace(int1d, 1), fft2d_complex64_complex64.plan)
@@ -242,35 +338,63 @@ task test_fft2d_complex64_to_complex64_transform()
     r[x].real = 5
     r[x].imag = 5
   end
-  fill(s, 1)
+  fill(s, 0)
 
-  print_array_2d_double_complex(r, "Input array")
   fft2d_complex64_complex64.make_plan(r, s, p)
   fft2d_complex64_complex64.execute_plan_task(r, s, p)
-  print_array_2d_double_complex(s, "Output array")
   fft2d_complex64_complex64.destroy_plan(p)
+
+  -- Verify
+  var e = region(ispace(int2d, { 2, 2 }), complex64)
+  fill(e, 0)
+  e[{x=0, y=0}].real = 20
+  e[{x=0, y=0}].imag = 20
+
+  print_region_2d_complex64("Input", r)
+  print_region_2d_complex64("Output", s)
+  print_region_2d_complex64("Expected", e)
+
+  var status = compare_regions_2d_complex64(s, e)
+  format.println("<< test_2d_complex64_to_complex64_transform [{}]", status)
 end
 
 __demand(__inline)
-task test_fft3d_complex64_to_complex64_transform()
+task test_3d_complex64_to_complex64_transform()
+  format.println(">> test_2d_complex64_to_complex64_transform")
+
   var r = region(ispace(int3d, { 3, 2, 2 }), complex64)
   var s = region(ispace(int3d, { 3, 2, 2 }), complex64)
   var p = region(ispace(int1d, 1), fft3d_complex64_complex64.plan)
+
   for x in r do
     r[x].real = 3
     r[x].imag = 3
   end
   fill(s, 0)
-  print_array_3d_double_complex(r, "Input array")
+
   -- Important: this overwrites r and s!
   fft3d_complex64_complex64.make_plan(r, s, p)
   fft3d_complex64_complex64.execute_plan_task(r, s, p)
-  print_array_3d_double_complex(s, "Output array")
   fft3d_complex64_complex64.destroy_plan(p)
+
+  -- Verify
+  var e = region(ispace(int3d, { 3, 2, 2 }), complex64)
+  fill(e, 0)
+  e[{x=0, y=0, z=0}].real = 36
+  e[{x=0, y=0, z=0}].imag = 36
+
+  print_region_3d_complex64("Input", r)
+  print_region_3d_complex64("Output", s)
+  print_region_3d_complex64("Expected", e)
+
+  var status = compare_regions_3d_complex64(s, e)
+  format.println("<< test_2d_complex64_to_complex64_transform [{}]", status)
 end
 
 __demand(__inline)
-task test_fft3d_complex64_to_complex64_batch_transform()
+task test_3d_complex64_to_complex64_batch_transform()
+  format.println(">> test_3d_complex64_to_complex64_batch_transform")
+
   var r = region(ispace(int3d, { 3, 3, 2 }), complex64)
   var s = region(ispace(int3d, { 3, 3, 2 }), complex64)
   var p = region(ispace(int1d, 1), fft3d_batch_complex64_complex64.plan)
@@ -281,15 +405,30 @@ task test_fft3d_complex64_to_complex64_batch_transform()
   end
   fill(s, 0)
 
-  print_array_3d_double_complex(r, "Input array")
   fft3d_batch_complex64_complex64.make_plan_batch(r, s, p)
   fft3d_batch_complex64_complex64.execute_plan_task(r, s, p)
-  print_array_3d_double_complex(s, "Output array")
   fft3d_batch_complex64_complex64.destroy_plan(p)
+
+  -- Verify
+  var e = region(ispace(int3d, { 3, 3, 2 }), complex64)
+  fill(e, 0)
+  e[{x=0, y=0, z=0}].real = 27
+  e[{x=0, y=0, z=0}].imag = 27
+  e[{x=0, y=0, z=1}].real = 27
+  e[{x=0, y=0, z=1}].imag = 27
+
+  print_region_3d_complex64("Input", r)
+  print_region_3d_complex64("Output", s)
+  print_region_3d_complex64("Expected", e)
+
+  var status = compare_regions_3d_complex64(s, e)
+  format.println("<< test_3d_complex64_to_complex64_batch_transform [{}]", status)
 end
 
 __demand(__inline)
-task test_fft3d_double_to_complex64_batch_transform()
+task test_3d_double_to_complex64_batch_transform()
+  format.println(">> test_3d_double_to_complex64_batch_transform")
+
   var r = region(ispace(int3d, { 3, 3, 2 }), double)
   var s = region(ispace(int3d, { 3, 3, 2 }), complex64)
   var p = region(ispace(int1d, 1), fft3d_batch_double_complex64.plan)
@@ -300,23 +439,34 @@ task test_fft3d_double_to_complex64_batch_transform()
   end
   fill(s, 0)
 
-  print_array_3d_double_real(r, "Input array")
   fft3d_batch_double_complex64.make_plan_batch(r, s, p)
   fft3d_batch_double_complex64.execute_plan_task(r, s, p)
-  print_array_3d_double_complex(s, "Output array")
   fft3d_batch_double_complex64.destroy_plan(p)
+
+  -- Verify
+  var e = region(ispace(int3d, { 3, 3, 2 }), complex64)
+  fill(e, 0)
+  e[{x=0, y=0, z=0}].real = 27
+  e[{x=0, y=0, z=1}].real = 27
+
+  print_region_3d_double("Input", r)
+  print_region_3d_complex64("Output", s)
+  print_region_3d_complex64("Expected", e)
+
+  var status = compare_regions_3d_complex64(s, e)
+  format.println("<< test_3d_double_to_complex64_batch_transform [{}]", status)
 end
 
 task main()
-  test_fft1d_double_to_complex64_transform()
-  test_fft1d_complex32_to_complex32_transform()
-  test_fft1d_float_to_complex32_transform()
-  test_fft1d_complex64_to_complex64_transform()
-  test_fft1d_complex64_to_complex64_distrib_transform()
-  test_fft2d_complex64_to_complex64_transform()
-  test_fft3d_complex64_to_complex64_transform()
-  test_fft3d_complex64_to_complex64_batch_transform()
-  test_fft3d_double_to_complex64_batch_transform()
+  test_1d_float_to_complex32_transform()
+  test_1d_double_to_complex64_transform()
+  test_1d_complex32_to_complex32_transform()
+  test_1d_complex64_to_complex64_transform()
+  test_1d_complex64_to_complex64_distrib_transform()
+  test_2d_complex64_to_complex64_transform()
+  test_3d_complex64_to_complex64_transform()
+  test_3d_complex64_to_complex64_batch_transform()
+  test_3d_double_to_complex64_batch_transform()
 end
 
 regentlib.start(main, cmapper.register_mappers)

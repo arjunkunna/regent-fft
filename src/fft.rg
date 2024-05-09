@@ -42,9 +42,10 @@ fftw_c.FFTW_ESTIMATE = (2 ^ 6)
 
 local fft = {}
 
--- Create the FFT interface itype should be the index type of the transform
--- (int1d for 1d/int2d for 2d). dtype_in = complex64/complex32/real/float;
--- dtype_out = complex32/complex64 depending on transform.
+--- Create the FFT interface.
+-- @param itype Index type of transform (int2d/int2d).
+-- @param dtype_in Input data type of transform (float/double/complex32/complex64).
+-- @param dtype_out Output data type of transform (complex32/complex64).
 function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   assert(regentlib.is_index_type(itype), "requires an index type as the first argument")
   local dim = itype.dim
@@ -272,7 +273,12 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     end
   end
 
-  -- CPU version of make_plan. Calls make_plan_gpu if necessary
+  --- Make plan.
+  -- @param input Input region.
+  -- @param output Output region.
+  -- @param plan Plan region.
+  -- @note To execute it in a separate task, it must be wrapped into a task.
+  -- @note Calls `make_plan_gpu` if necessary.
    __demand(__inline)
   task iface.make_plan(input : region(ispace(itype), dtype_in),output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan))
   where reads writes(input, output, plan) do
@@ -344,9 +350,8 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
     p.address_space = address_space
 
-    -- If GPUs are available, call make_plan_GPU
     if gpu_available then
-      format.println("Num_local_gpus is {}", iface.get_num_local_gpus())
+      format.println("Num of local GPUs: {}", iface.get_num_local_gpus())
       if iface.get_num_local_gpus() > 0 then
         format.println("GPUs identified: calling make_plan_gpu...")
         make_plan_gpu(input, output, plan, p.address_space)
@@ -358,13 +363,10 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   local make_plan_gpu_batch
   if gpu_available then
     __demand(__cuda, __leaf)
-
     task make_plan_gpu_batch(input : region(ispace(itype), dtype_in), output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan), address_space : c.legion_address_space_t)
-
     where reads writes(input, output, plan) do
       format.println("In iface.make_plan_gpu_batch...")
 
-      -- Get pointer to plan
       var p = iface.get_plan(plan, true)
 
       -- Verify we are in GPU mode by checking TOC_PROC
@@ -378,7 +380,6 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
         var i = c.legion_processor_address_space(proc)
         regentlib.assert(address_space == i, "make_plan_gpu_batch must be executed on a processor in the same address space")
 
-        -- Get input and output bases
         var input_base = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0])
         var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0])
         var lo = input.ispace.bounds.lo:to_point()
@@ -463,7 +464,11 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     end
   end
 
-  -- Batched version of make_plan. Calls make_plan_gpu_batch if necessary
+  --- Make plan (batched version).
+  -- @param input Input region.
+  -- @param output Output region.
+  -- @param plan Plan region.
+  -- @note Calls make_plan_gpu_batch if necessary.
   __demand(__inline)
   task iface.make_plan_batch(input : region(ispace(itype), dtype_in), output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan))
   where reads writes(input, output, plan) do
@@ -580,15 +585,22 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     p.address_space = address_space
   end
 
-  -- The make_plan tasks above are demand_(__inline tasks). This means that if
-  -- the user wants it to execute it in a separate task, they must wrap the task
-  -- themselves -- this is what make_plan_task does.
+  --- Make plan task.
+  -- @param input Input region.
+  -- @param output Output region.
+  -- @param plan Plan region.
   task iface.make_plan_task(input : region(ispace(itype), dtype_in), output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan))
   where reads writes(input, output, plan) do
     iface.make_plan(input, output, plan)
   end
 
-  -- Distribution version of make_plan
+  --- Make plan (distributed version).
+  -- @param input Input region.
+  -- @param input_part Input partition.
+  -- @param output Output region.
+  -- @param output_part Output partition.
+  -- @param plan Plan region.
+  -- @param plan_part Plan partition.
   __demand(__inline)
   task iface.make_plan_distrib(input : region(ispace(itype), dtype_in), input_part : partition(disjoint, input, ispace(int1d)), output : region(ispace(itype), dtype_out), output_part : partition(disjoint, output, ispace(int1d)), plan : region(ispace(int1d), iface.plan), plan_part : partition(disjoint, plan, ispace(int1d)))
   where reads writes(input, output, plan) do
@@ -617,8 +629,12 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
   -- EXECUTE PLAN FUNCTIONS
 
-  -- Task to execute plan. Calls cufftExecZ2Z if in GPU mode and
-  -- fftw_execute_dft if in CPU mode
+  --- Execute plan.
+  -- @param input Input to execute plan on.
+  -- @param output Output of the executed plan.
+  -- @param plan Plan object used to execute plan.
+  -- @note For GPU, it calls cufftExecZ2Z.
+  -- @note For CPU, it calls fftw_execute_dft.
    __demand(__inline)
   task iface.execute_plan(input : region(ispace(itype), dtype_in), output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan))
   where reads(input, plan), writes(output) do
@@ -694,10 +710,10 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     end
   end
 
-
-  -- execute_plan tasks are demand_(__inline tasks). This means that if the user
-  -- wants it to execute it in a separate task, they must wrap the task
-  -- themselves -- this is what execute_plan_task does.
+  --- Execute plan task.
+  -- @param input Input to execute plan on.
+  -- @param output Output of the executed plan.
+  -- @param plan Plan object used to execute plan.
   __demand(__cuda, __leaf)
   task iface.execute_plan_task(input : region(ispace(itype), dtype_in), output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan))
   where reads(input, plan), reads writes(output) do
@@ -706,7 +722,10 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
   -- DESTROY PLAN FUNCTIONS
 
-  -- Task to destroy plan. Takes plan region as argument.
+  --- Destroy plan.
+  -- @param plan Plan to be destroyed.
+  -- @note To execute it in a separate task, it must be wrapped into a task.
+  -- @note That is what `destroy_plan_task` does.
   __demand(__inline)
   task iface.destroy_plan(plan : region(ispace(int1d), iface.plan))
   where reads writes(plan) do
@@ -729,15 +748,16 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     end
   end
 
-  -- destroy_plan task is a demand_(__inline tasks). This means that if the user
-  -- wants it to execute it in a separate task, they must wrap the task
-  -- themselves -- this is what destroy_plan_task does.
+  --- Destroy plan task.
+  -- @param plan Plan to be destroyed.
   task iface.destroy_plan_task(plan : region(ispace(int1d), iface.plan))
   where reads writes(plan) do
     iface.destroy_plan(plan)
   end
 
-  -- Distributed version of destroy_plan
+  --- Destroy plan (distributed version).
+  -- @param plan Plan to be destroyed.
+  -- @param plan_part Plan partition to be destroyed in `plan`.
   __demand(__inline)
   task iface.destroy_plan_distrib(plan : region(ispace(int1d), iface.plan), plan_part : partition(disjoint, plan, ispace(int1d)))
   where reads writes(plan) do

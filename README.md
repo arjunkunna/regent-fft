@@ -20,7 +20,7 @@ Both Complex-to-Complex and Real-To-Complex transformations are supported.
 
 Both `complex64` and `complex32` types are supported in GPU mode. CPU mode is
 only able to support `complex64`. It is possible to use `complex32` in CPU mode
-but it requires some additional setup - please submit an issue if that is of
+but it requires some additional setup - please submit an issue if it might be of
 interest.
 
 Batched transforms are also supported.
@@ -145,6 +145,14 @@ var p = region(ispace(int1d, 1), fft1d.plan)
 `make_plan` is a `__demand(__inline)` task. This means that if the user wants it
 to execute it in a separate task, they must wrap the task themselves.
 
+> [!IMPORTANT]
+>
+> `make_plan` overwrites the input and output regions `r` and `s`. This is
+> mandated by FFTW, which Regent FFT uses on CPUs. In order to avoid overwriting
+> data, the user must either initialize the plan prior to loading the regions
+> with data, or else must create a temporary region (of the same size and layout
+> as the real one) for use in initialization.
+
 #### 3. Execute Plan
 
 Next, we execute the plan. This takes the same 3 regions as mentioned above.
@@ -226,15 +234,6 @@ features that may be helpful.
 
 - Elliott Slaughter (<slaughter@cs.stanford.edu>)
 - Arjun Kunna (<arjunkunna@gmail.com>)
-
-## Version History
-
-- 1.0: Initial Release (Apr 2024)
-  - Supports CPU and single-GPU transforms for 1D, 2D, and 3D.
-  - Supports Real-to-Complex and Complex-to-Complex transforms for both CPU
-    (complex64 only) and GPU (complex32 and complex64).
-  - Supports batched transforms: both R2C and C2C (complex32 and complex64)
-    for GPUs, and R2C and C2C (only complex64) for CPUs.
 
 ## Additional Resources
 

@@ -20,7 +20,7 @@ Both Complex-to-Complex and Real-To-Complex transformations are supported.
 
 Both `complex64` and `complex32` types are supported in GPU mode. CPU mode is
 only able to support `complex64`. It is possible to use `complex32` in CPU mode
-but it requires some additional setup - please submit an issue if that is of
+but it requires some additional setup - please submit an issue if it might be of
 interest.
 
 Batched transforms are also supported.

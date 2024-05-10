@@ -1,4 +1,4 @@
-/* Copyright 2020 Stanford University
+/* Copyright 2024 Stanford University
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,12 +51,9 @@ Memory FFTTestMapper::default_policy_select_target_memory(MapperContext ctx,
   // return Memory::Z_COPY_MEM;
   Memory result = Utilities::MachineQueryInterface::find_memory_kind(machine, target_proc,
                                                                      Memory::Z_COPY_MEM);
-
-  // Check if the result is valid
   if (result.exists()) {
     return result;
   } else {
-    // If result is not valid, fall back to DefaultMapper's logic
     return DefaultMapper::default_policy_select_target_memory(ctx, target_proc, req, mc);
   }
 }
@@ -67,12 +64,7 @@ static void create_mappers(Machine machine, Runtime *runtime,
        it != local_procs.end(); it++) {
     FFTTestMapper *mapper =
         new FFTTestMapper(runtime->get_mapper_runtime(), machine, *it, "fft_test_mapper");
-    // LoggingWrapper mapper = new LoggingWrapper(new
-    // FFTTestMapper(runtime->get_mapper_runtime(), machine, *it, "fft_test_mapper"));
-    runtime->replace_default_mapper(
-        (new LoggingWrapper(mapper)),
-        *it);  // replaced with the line below to stop memory issues
-    // runtime->replace_default_mapper(mapper, *it);
+    runtime->replace_default_mapper((new LoggingWrapper(mapper)), *it);
   }
 }
 

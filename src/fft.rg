@@ -29,10 +29,8 @@ regentlib.linklibrary("libfftw3.so")
 
 -- Import cuFFT API
 local cufft_c
-if gpu_available then
-  cufft_c = terralib.includec("cufftXt.h")
-  terralib.linklibrary("libcufft.so")
-end
+cufft_c = terralib.includec("cufftXt.h")
+terralib.linklibrary("libcufft.so")
 
 -- Define constants
 fftw_c.FFTW_FORWARD = -1
@@ -63,20 +61,12 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
   -- Create fspaces depending on whether GPUs are used or not
   local iface_plan
-  if gpu_available then
-    fspace iface_plan {
-      p : fftw_c.fftw_plan,
-      float_p : fftw_c.fftwf_plan,
-      cufft_p : cufft_c.cufftHandle,
-      address_space : c.legion_address_space_t,
-    }
-  else
-    fspace iface_plan {
-      p : fftw_c.fftw_plan,
-      float_p : fftw_c.fftwf_plan,
-      address_space : c.legion_address_space_t,
-    }
-  end
+  fspace iface_plan {
+    p : fftw_c.fftw_plan,
+    float_p : fftw_c.fftwf_plan,
+    cufft_p : cufft_c.cufftHandle,
+    address_space : c.legion_address_space_t,
+  }
 
   iface.plan = iface_plan
   iface.plan.__no_field_slicing = true
@@ -350,11 +340,15 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
     p.address_space = address_space
 
-    if gpu_available then
-      format.println("Num of local GPUs: {}", iface.get_num_local_gpus())
-      if iface.get_num_local_gpus() > 0 then
-        format.println("GPUs identified: calling make_plan_gpu...")
-        make_plan_gpu(input, output, plan, p.address_space)
+    rescape
+      if gpu_available then
+        remit rquote
+          format.println("Num of local GPUs: {}", iface.get_num_local_gpus())
+          if iface.get_num_local_gpus() > 0 then
+            format.println("GPUs identified: calling make_plan_gpu...")
+            make_plan_gpu(input, output, plan, p.address_space)
+          end
+        end
       end
     end
   end
@@ -503,11 +497,15 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     format.println("Size of dtype is {}", dtype_size)
 
     -- If GPUs, call make_plan_gpu_batch
-    if gpu_available then
-      format.println("Num_local_gpus is {}", iface.get_num_local_gpus())
-      if iface.get_num_local_gpus() > 0 then
-        format.println("GPUs identified: calling make_plan_gpu_batch...")
-        make_plan_gpu_batch(input, output, plan, p.address_space)
+    rescape
+      if gpu_available then
+        remit rquote
+          format.println("Num_local_gpus is {}", iface.get_num_local_gpus())
+          if iface.get_num_local_gpus() > 0 then
+            format.println("GPUs identified: calling make_plan_gpu_batch...")
+            make_plan_gpu_batch(input, output, plan, p.address_space)
+          end
+        end
       end
     end
 
@@ -615,9 +613,14 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     -- T(x) is a cast from type T to a value x
     p.p = [fftw_c.fftw_plan](0)
 
-    if gpu_available then
-      p.cufft_p = 0
+    rescape
+      if gpu_available then
+        remit rquote
+          p.cufft_p = 0
+        end
+      end
     end
+
 
     fill(plan, p)
 

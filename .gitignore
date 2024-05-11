@@ -1,5 +1,5 @@
 *~
-
+/legion
 /fftw-*
 env.sh
 valgrind*

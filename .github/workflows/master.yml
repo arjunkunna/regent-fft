@@ -9,6 +9,7 @@ on:
 jobs:
   regent-FFT-tests:
     runs-on: ubuntu-22.04
+    debug: ['1']
 
     steps:
       - name: Checkout

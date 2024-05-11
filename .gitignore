@@ -1,6 +1,6 @@
 *~
-/legion
-/fftw-*
+./legion
+./fftw-*
 env.sh
 valgrind*
 gdb*

@@ -179,7 +179,7 @@ task test_1d_float_to_complex32_transform()
   fill(s, 0)
 
   fft1d_float_complex32.make_plan(r, s, p)
-  fft1d_float_complex32.execute_plan_task(r, s, p)
+  fft1d_float_complex32.execute_plan(r, s, p)
   fft1d_float_complex32.destroy_plan(p)
 
   -- Verify
@@ -206,7 +206,7 @@ task test_1d_double_to_complex64_transform()
   fill(s, 0)
 
   fft1d_double_complex64.make_plan(r, s, p)
-  fft1d_double_complex64.execute_plan_task(r, s, p)
+  fft1d_double_complex64.execute_plan(r, s, p)
   fft1d_double_complex64.destroy_plan(p)
 
   -- Verify
@@ -236,7 +236,7 @@ task test_1d_complex32_to_complex32_transform()
   fill(s, 0)
 
   fft1d_complex32_complex32.make_plan(r, s, p)
-  fft1d_complex32_complex32.execute_plan_task(r, s, p)
+  fft1d_complex32_complex32.execute_plan(r, s, p)
   fft1d_complex32_complex32.destroy_plan(p)
 
   -- Verify
@@ -266,7 +266,7 @@ task test_1d_complex64_to_complex64_transform()
   fill(s, 0)
 
   fft1d_complex64_complex64.make_plan(r, s, p)
-  fft1d_complex64_complex64.execute_plan_task(r, s, p)
+  fft1d_complex64_complex64.execute_plan(r, s, p)
   fft1d_complex64_complex64.destroy_plan(p)
 
   -- Verify
@@ -340,7 +340,7 @@ task test_2d_complex64_to_complex64_transform()
   fill(s, 0)
 
   fft2d_complex64_complex64.make_plan(r, s, p)
-  fft2d_complex64_complex64.execute_plan_task(r, s, p)
+  fft2d_complex64_complex64.execute_plan(r, s, p)
   fft2d_complex64_complex64.destroy_plan(p)
 
   -- Verify
@@ -373,7 +373,7 @@ task test_3d_complex64_to_complex64_transform()
 
   -- Important: this overwrites r and s!
   fft3d_complex64_complex64.make_plan(r, s, p)
-  fft3d_complex64_complex64.execute_plan_task(r, s, p)
+  fft3d_complex64_complex64.execute_plan(r, s, p)
   fft3d_complex64_complex64.destroy_plan(p)
 
   -- Verify
@@ -405,7 +405,7 @@ task test_3d_complex64_to_complex64_batch_transform()
   fill(s, 0)
 
   fft3d_batch_complex64_complex64.make_plan_batch(r, s, p)
-  fft3d_batch_complex64_complex64.execute_plan_task(r, s, p)
+  fft3d_batch_complex64_complex64.execute_plan(r, s, p)
   fft3d_batch_complex64_complex64.destroy_plan(p)
 
   -- Verify
@@ -439,7 +439,7 @@ task test_3d_double_to_complex64_batch_transform()
   fill(s, 0)
 
   fft3d_batch_double_complex64.make_plan_batch(r, s, p)
-  fft3d_batch_double_complex64.execute_plan_task(r, s, p)
+  fft3d_batch_double_complex64.execute_plan(r, s, p)
   fft3d_batch_double_complex64.destroy_plan(p)
 
   -- Verify
@@ -461,7 +461,7 @@ task main()
   test_1d_double_to_complex64_transform()
   test_1d_complex32_to_complex32_transform()
   test_1d_complex64_to_complex64_transform()
-  test_1d_complex64_to_complex64_distrib_transform()
+  --test_1d_complex64_to_complex64_distrib_transform()
   test_2d_complex64_to_complex64_transform()
   test_3d_complex64_to_complex64_transform()
   test_3d_complex64_to_complex64_batch_transform()

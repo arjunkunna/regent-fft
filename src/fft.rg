@@ -17,7 +17,6 @@
 import "regent"
 
 local format = require("std/format")
-local launcher = require("std/launcher")
 local data = require("common/data")
 local gpuhelper = require("regent/gpu/helper")
 local gpu_available = gpuhelper.check_gpu_available()
@@ -29,8 +28,10 @@ regentlib.linklibrary("libfftw3.so")
 
 -- Import cuFFT API
 local cufft_c
-cufft_c = terralib.includec("cufftXt.h")
-terralib.linklibrary("libcufft.so")
+if gpu_available then
+  cufft_c = terralib.includec("cufftXt.h")
+  terralib.linklibrary("libcufft.so")
+end
 
 -- Define constants
 fftw_c.FFTW_FORWARD = -1
@@ -61,12 +62,20 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
   -- Create fspaces depending on whether GPUs are used or not
   local iface_plan
-  fspace iface_plan {
-    p : fftw_c.fftw_plan,
-    float_p : fftw_c.fftwf_plan,
-    cufft_p : cufft_c.cufftHandle,
-    address_space : c.legion_address_space_t,
-  }
+  if gpu_available then
+    fspace iface_plan {
+      p : fftw_c.fftw_plan,
+      float_p : fftw_c.fftwf_plan,
+      cufft_p : cufft_c.cufftHandle,
+      address_space : c.legion_address_space_t,
+    }
+  else
+    fspace iface_plan {
+      p : fftw_c.fftw_plan,
+      float_p : fftw_c.fftwf_plan,
+      address_space : c.legion_address_space_t,
+    }
+  end
 
   iface.plan = iface_plan
   iface.plan.__no_field_slicing = true
@@ -96,6 +105,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
       -- regentlib.assert(offsets[0].offset == terralib.sizeof(complex64), "stride does not match expected value")
       destroy_accessor(accessor)
+      
       return base_pointer
     end
 

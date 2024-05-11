@@ -16,6 +16,7 @@ import "regent"
 
 local fft = require("fft")
 local cmapper = require("test_mapper")
+local launcher = require("std/launcher")
 local format = require("std/format")
 
 -- PRINT FUNCTIONS

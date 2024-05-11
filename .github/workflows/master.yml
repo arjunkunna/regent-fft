@@ -9,9 +9,10 @@ on:
 jobs:
   regent-FFT-tests:
     runs-on: ubuntu-22.04
-    
+
     strategy: 
-      matrix: debug: ['1', '0']
+      matrix: 
+        debug: ['1', '0']
 
     steps:
       - name: Checkout

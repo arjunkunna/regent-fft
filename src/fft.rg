@@ -30,7 +30,7 @@ regentlib.linklibrary("libfftw3.so")
 local cufft_c
 if gpu_available then
   cufft_c = terralib.includec("cufftXt.h")
-  terralib.linklibrary("libcufft.so")
+  regentlib.linklibrary("libcufft.so")
 end
 
 -- Define constants
@@ -804,7 +804,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
     var p = iface.get_plan(plan, true)
     var address_space = c.legion_processor_address_space(get_executing_processor(__runtime()))
-    
+
     c.printf("Destroy plan via FFTW\n")
     fftw_c.fftw_destroy_plan(p.p)
 

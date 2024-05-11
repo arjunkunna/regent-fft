@@ -30,7 +30,7 @@ echo "CUDA_PATH=${CUDA_PATH}"
 echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}"
 
 git clone --depth 1 --branch stable https://github.com/StanfordLegion/legion.git
-CC=gcc CXX=g++ USE_GASNET=0 USE_CUDA=1 ./legion/language/scripts/setup_env.py
+CC=gcc CXX=g++ USE_GASNET=0 USE_CUDA=1 DEBUG=${DEBUG} ./legion/language/scripts/setup_env.py
 ./install.py
 ./legion/language/regent.py test/fft_test.rg -fgpu cuda -fgpu-offline 1 -fgpu-arch pascal
 ./legion/language/regent.py test/fft_test.rg -fgpu none

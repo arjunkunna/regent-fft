@@ -275,11 +275,10 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     end
   end
 
-  --- Make plan.
+  --- Creates the FFT plan.
   -- @param input Input region.
   -- @param output Output region.
   -- @param plan Plan region.
-  -- @note To execute it in a separate task, it must be wrapped into a task.
   -- @note Calls `make_plan_gpu` if necessary.
    __demand(__inline)
   task iface.make_plan(input : region(ispace(itype), dtype_in),output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan))
@@ -320,32 +319,27 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     -- any computation
     format.println("Calling fftw_plan_dft to store fftw_plan in p.p...")
 
+    -- AK Note: I don't actually understand this that well, how the size of each dimension is stored in the 'n' array
+    var n : int[dim]
+    ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)] --n is a array of size dim storing the size of each dimension
+
     -- R2C: Float to Complex32
     if dtype_size == 8 and real_flag then
       format.println("R2C: Float to Complex32: Not Supported")
-      -- AK Note: I don't actually understand this that well, how the size of each dimension is stored in the 'n' array
-      var n : int[dim]
-      ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)] --n is a array of size dim storing the size of each dimension
       format.println("calling fftwf_plan_dft_r2c")
       -- p.float_p = fftw_c.fftwf_plan_dft_r2c(dim, &n[0], [&float](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_ESTIMATE)
 
     elseif dtype_size == 8 then
       format.println("R2C: Complex32 to Complex32: Not Supported")
-      var n : int[dim]
-      ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
       format.println("calling fftwf_plan_dft")
       -- p.float_p = fftw_c.fftwf_plan_dft(dim, &n[0], [&fftw_c.fftwf_complex](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_FORWARD, fftw_c.FFTW_ESTIMATE)
 
     elseif dtype_size == 16 and real_flag then
       format.println("R2C: Double to Complex64: Calling fftw_plan_dft_r2c")
-      var n : int[dim]
-      ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
       p.p = fftw_c.fftw_plan_dft_r2c(dim, &n[0], [&double](input_base), [&fftw_c.fftw_complex](output_base), fftw_c.FFTW_ESTIMATE)
 
     elseif dtype_size == 16 then
       format.println("R2C: Complex64 to Complex64: Calling fftw_plan_dft_r2c")
-      var n : int[dim]
-      ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
       format.println("n[0] is {}, dim is {}", n[0], dim)
       p.p = fftw_c.fftw_plan_dft(dim, &n[0], [&fftw_c.fftw_complex](input_base), [&fftw_c.fftw_complex](output_base), fftw_c.FFTW_FORWARD, fftw_c.FFTW_ESTIMATE)
     end
@@ -534,56 +528,39 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     -- type[In] – The transform data type: Z2Z or D2Z.
     -- batch[In] – How many batches should be computed: 7
 
+    var n : int[dim]
+    ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
+
     -- R2C: Float to Complex32
     if dtype_size == 8 and real_flag then
       format.println("R2C: Float to Complex32: Not Supported for CPU mode")
-      var n : int[dim]
-      ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
       format.println("calling fftwf_plan_dft_r2c")
       --p.float_p = fftw_c.fftwf_plan_dft_r2c(dim, &n[0], [&float](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_ESTIMATE) --Commented out because not supported: FFTW does not support float and double on single install
 
     -- C2C: Complex32 to Complex32
     elseif dtype_size == 8 then
       format.println("R2C: Complex32 to Complex32: Not Supported for CPU mode")
-      var n : int[dim]
-      ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
       format.println("calling fftwf_plan_dft")
       -- p.float_p = fftw_c.fftwf_plan_dft(dim, &n[0], [&fftw_c.fftwf_complex](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_FORWARD, fftw_c.FFTW_ESTIMATE) --Commented out because not supported: FFTW does not support float and double on single install
 
     -- R2C: Double to Complex64
     elseif dtype_size == 16 and real_flag then
       format.println("R2C: Double to Complex64: Calling fftw_plan_dft_r2c")
-      var n : int[dim]
-      ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
 
       -- Define 'n' array: n is an array of size rank, describing the size of
       -- each dimension. For batched transforms, we want to exclude the last
       -- dimension as that is the number of batches
-      --
-      -- AK Note: There must be a better way to copy/slice arrays in regent
-      -- instead of naively using this for loop
       var n_batch : int[dim-1]
       for i = 0, dim do
         n_batch[i] = n[i]
       end
 
       format.println("fftw_plan_many_dft_r2c: n[0] = {}, n[1] = {}, n[2] = {}, n_batch[0] = {}, n_batch[1] = {}, i_dist = {}", n[0], n[1], n[2], n_batch[0], n_batch[1], i_dist)
-
-      -- AK Note: This is segfaulting now. Complex64 to Complex64 works somehow,
-      -- even though the call is the same
       p.p = fftw_c.fftw_plan_many_dft_r2c(dim-1, &n_batch[0], n[dim-1], [&double](input_base), &n_batch[0], 1, i_dist, [&fftw_c.fftw_complex](output_base), &n_batch[0], 1, i_dist, fftw_c.FFTW_ESTIMATE)
 
     -- C2C: Complex64 to Complex64
     elseif dtype_size == 16 then
-      var n : int[dim]
-      ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
 
-      -- Define 'n' array: n is an array of size rank, describing the size of
-      -- each dimension. For batched transforms, we want to exclude the last
-      -- dimension as that is the number of batches
-      --
-      -- AK Note: There must be a better way to copy/slice arrays in regent
-      -- instead of naively using this for loop
       var n_batch : int[dim-1]
       for i = 0, dim do
         n_batch[i] = n[i]

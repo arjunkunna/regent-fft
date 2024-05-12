@@ -184,7 +184,7 @@ fft1d.destroy_plan(p)
 To illustrate how to perform a batched transform, let us use the example where
 you want to perform 7 batches of a 256 x 256 transform.
 
-In this case, the user creates a 3D interface:
+In this case, the user creates a 3D interface: one dimension more than the dimension of the transform:
 
 ```lua
 local fft3d_batch = fft.generate_fft_interface(int3d, complex64, complex64)

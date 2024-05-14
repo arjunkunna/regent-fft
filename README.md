@@ -20,7 +20,7 @@ Both Complex-to-Complex and Real-To-Complex transformations are supported.
 
 Both `complex64` and `complex32` types are supported in GPU mode. CPU mode is
 only able to support `complex64`. It is possible to use `complex32` in CPU mode
-but it requires some additional setup - please submit an issue if that is of
+but it requires some additional setup - please submit an issue if it might be of
 interest.
 
 Batched transforms are also supported.
@@ -124,8 +124,9 @@ The input region should be initialized with index space of the form
 `ispace(<type>, N)`, where N is the size of the array, and `<type>` is either
 int1d/int2d/int3d depending on the dimension of the transform. The fieldspace of
 the region is the type supported by the transform - e.g, in a real-to-complex
-transform with doubles, the input array will have fieldspace `double` and output
-array will have fieldspace `complex64`.
+transform with double precision, the input array will have fieldspace `double` and output
+array will have fieldspace `complex64`. Larger fieldspaces that contain the appropriate types 
+can also be passed in via field polymorphism - [here](https://groups.google.com/g/legionusers/c/yvQa8BE6QD0/m/_1cL_w-aAAAJ) is an example.
 
 For example, in a 1D double-to-complex64 transform of size 3, the input and
 output regions may be initialized as follows:
@@ -184,7 +185,7 @@ fft1d.destroy_plan(p)
 To illustrate how to perform a batched transform, let us use the example where
 you want to perform 7 batches of a 256 x 256 transform.
 
-In this case, the user creates a 3D interface:
+In this case, the user creates a 3D interface: one dimension more than the dimension of the transform:
 
 ```lua
 local fft3d_batch = fft.generate_fft_interface(int3d, complex64, complex64)

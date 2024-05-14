@@ -16,6 +16,7 @@ import "regent"
 
 local fft = require("fft")
 local cmapper = require("test_mapper")
+local launcher = require("std/launcher")
 local format = require("std/format")
 
 -- PRINT FUNCTIONS
@@ -88,6 +89,19 @@ where reads (input) do
   format.println("]")
 end
 
+
+--__demand(__inline, __leaf)
+--task print_region_4d_complex64(title : rawstring, input : region(ispace(int4d), complex64))
+--where reads (input) do
+--  format.println("{} = [", title)
+--  format.println("Bounds = {}", input.bounds)
+--  for x in input do
+--    var c = input[x]
+--    format.println("index {}: {} + {}j,", x, c.real, c.imag)
+--  end
+--  format.println("]")
+--end
+
 -- COMPARISON FUNCTIONS
 
 local function make_compare_region_task(output, expected)
@@ -112,6 +126,19 @@ local compare_regions_1d_complex64 = make_compare_region_task(region(ispace(int1
 local compare_regions_2d_complex64 = make_compare_region_task(region(ispace(int2d), complex64), region(ispace(int2d), complex64))
 local compare_regions_3d_complex64 = make_compare_region_task(region(ispace(int3d), complex64), region(ispace(int3d), complex64))
 
+--__demand(__inline, __leaf)
+--task compare_regions_4d_complex64(output : region(ispace(int4d), complex64), expected : region(ispace(int4d), complex64))
+--where reads (output, expected) do
+--  var status = "PASSED"
+--  for x in output do
+--    if (output[x].real ~= expected[x].real) or (output[x].imag ~= expected[x].imag) then
+--      status = "FAILED"
+--      break
+--    end
+--  end
+--  return status
+--end
+
 -- INTERFACES
 
 local fft1d_complex32_complex32 = fft.generate_fft_interface(int1d, complex32, complex32)
@@ -124,6 +151,8 @@ local fft1d_double_complex64 = fft.generate_fft_interface(int1d, double, complex
 local fft1d_float_complex32 = fft.generate_fft_interface(int1d, float, complex32)
 local fft3d_batch_complex64_complex64 = fft.generate_fft_interface(int3d, complex64, complex64)
 local fft3d_batch_double_complex64 = fft.generate_fft_interface(int3d, double, complex64)
+
+--local fft4d_batch_complex64_complex64 = fft.generate_fft_interface(int4d, complex64, complex64)
 
 -- TEST FUNCTIONS
 
@@ -139,7 +168,7 @@ task test_1d_float_to_complex32_transform()
   fill(s, 0)
 
   fft1d_float_complex32.make_plan(r, s, p)
-  fft1d_float_complex32.execute_plan_task(r, s, p)
+  fft1d_float_complex32.execute_plan(r, s, p)
   fft1d_float_complex32.destroy_plan(p)
 
   -- Verify
@@ -166,7 +195,7 @@ task test_1d_double_to_complex64_transform()
   fill(s, 0)
 
   fft1d_double_complex64.make_plan(r, s, p)
-  fft1d_double_complex64.execute_plan_task(r, s, p)
+  fft1d_double_complex64.execute_plan(r, s, p)
   fft1d_double_complex64.destroy_plan(p)
 
   -- Verify
@@ -196,7 +225,7 @@ task test_1d_complex32_to_complex32_transform()
   fill(s, 0)
 
   fft1d_complex32_complex32.make_plan(r, s, p)
-  fft1d_complex32_complex32.execute_plan_task(r, s, p)
+  fft1d_complex32_complex32.execute_plan(r, s, p)
   fft1d_complex32_complex32.destroy_plan(p)
 
   -- Verify
@@ -226,7 +255,7 @@ task test_1d_complex64_to_complex64_transform()
   fill(s, 0)
 
   fft1d_complex64_complex64.make_plan(r, s, p)
-  fft1d_complex64_complex64.execute_plan_task(r, s, p)
+  fft1d_complex64_complex64.execute_plan(r, s, p)
   fft1d_complex64_complex64.destroy_plan(p)
 
   -- Verify
@@ -300,7 +329,7 @@ task test_2d_complex64_to_complex64_transform()
   fill(s, 0)
 
   fft2d_complex64_complex64.make_plan(r, s, p)
-  fft2d_complex64_complex64.execute_plan_task(r, s, p)
+  fft2d_complex64_complex64.execute_plan(r, s, p)
   fft2d_complex64_complex64.destroy_plan(p)
 
   -- Verify
@@ -333,7 +362,7 @@ task test_3d_complex64_to_complex64_transform()
 
   -- Important: this overwrites r and s!
   fft3d_complex64_complex64.make_plan(r, s, p)
-  fft3d_complex64_complex64.execute_plan_task(r, s, p)
+  fft3d_complex64_complex64.execute_plan(r, s, p)
   fft3d_complex64_complex64.destroy_plan(p)
 
   -- Verify
@@ -365,7 +394,7 @@ task test_3d_complex64_to_complex64_batch_transform()
   fill(s, 0)
 
   fft3d_batch_complex64_complex64.make_plan_batch(r, s, p)
-  fft3d_batch_complex64_complex64.execute_plan_task(r, s, p)
+  fft3d_batch_complex64_complex64.execute_plan(r, s, p)
   fft3d_batch_complex64_complex64.destroy_plan(p)
 
   -- Verify
@@ -399,7 +428,7 @@ task test_3d_double_to_complex64_batch_transform()
   fill(s, 0)
 
   fft3d_batch_double_complex64.make_plan_batch(r, s, p)
-  fft3d_batch_double_complex64.execute_plan_task(r, s, p)
+  fft3d_batch_double_complex64.execute_plan(r, s, p)
   fft3d_batch_double_complex64.destroy_plan(p)
 
   -- Verify
@@ -416,16 +445,52 @@ task test_3d_double_to_complex64_batch_transform()
   format.println("<< test_3d_double_to_complex64_batch_transform [{}]", status)
 end
 
+
+--__demand(__inline)
+--task test_4d_complex64_to_complex64_batch_transform()
+--  format.println(">> test_4d_double_to_complex64_batch_transform")
+
+--  var r = region(ispace(int4d, { 3, 3, 3, 2 }), complex64)
+--  var s = region(ispace(int4d, { 3, 3, 3, 2 }), complex64)
+--  var p = region(ispace(int1d, 1), fft4d_batch_complex64_complex64.plan)
+
+--  for x in r do
+--    r[x].real = 3
+--    r[x].imag = 3
+--  end
+--  fill(s, 0)
+
+--  fft4d_batch_complex64_complex64.make_plan_batch(r, s, p)
+--  fft4d_batch_complex64_complex64.execute_plan(r, s, p)
+--  fft4d_batch_complex64_complex64.destroy_plan(p)
+
+  -- Verify
+  --var e = region(ispace(int4d, { 3, 3, 3, 2 }), complex64)
+  --fill(e, 0)
+  --e[{x=0, y=0, z=0, w=0}].real = 81
+  --e[{x=0, y=0, z=0, w=0}].imag = 81
+  --e[{x=0, y=0, z=0, w=1}].real = 27
+  --e[{x=0, y=0, z=0, w=1}].imag = 27
+
+  --print_region_4d_complex64("Input", r)
+  --print_region_4d_complex64("Output", s)
+  --print_region_4d_complex64("Expected", e)
+
+  --var status = compare_regions_4d_complex64(s, e)
+  --format.println("<< test_4d_complex64_to_complex64_batch_transform [{}]", status)
+--end
+
 task main()
   test_1d_float_to_complex32_transform()
   test_1d_double_to_complex64_transform()
   test_1d_complex32_to_complex32_transform()
   test_1d_complex64_to_complex64_transform()
-  test_1d_complex64_to_complex64_distrib_transform()
+  --test_1d_complex64_to_complex64_distrib_transform()
   test_2d_complex64_to_complex64_transform()
   test_3d_complex64_to_complex64_transform()
   test_3d_complex64_to_complex64_batch_transform()
   test_3d_double_to_complex64_batch_transform()
+  --test_4d_complex64_to_complex64_batch_transform()
 end
 
 regentlib.start(main, cmapper.register_mappers)

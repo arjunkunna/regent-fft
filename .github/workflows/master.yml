@@ -10,6 +10,10 @@ jobs:
   regent-FFT-tests:
     runs-on: ubuntu-22.04
 
+    strategy: 
+      matrix: 
+        debug: ['1', '0']
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,4 +25,6 @@ jobs:
           git diff
 
       - name: Run tests
+        env:
+          DEBUG: ${{ matrix.debug }}
         run: ./test.sh

@@ -17,7 +17,6 @@
 import "regent"
 
 local format = require("std/format")
-local launcher = require("std/launcher")
 local data = require("common/data")
 local gpuhelper = require("regent/gpu/helper")
 local gpu_available = gpuhelper.check_gpu_available()
@@ -31,7 +30,7 @@ regentlib.linklibrary("libfftw3.so")
 local cufft_c
 if gpu_available then
   cufft_c = terralib.includec("cufftXt.h")
-  terralib.linklibrary("libcufft.so")
+  regentlib.linklibrary("libcufft.so")
 end
 
 -- Define constants
@@ -50,6 +49,9 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   assert(regentlib.is_index_type(itype), "requires an index type as the first argument")
   local dim = itype.dim
   local dtype_size = terralib.sizeof(dtype_out)
+  assert(dim >= 1 and dim <= 3, "currently only 1 <= dim <= 3 is supported")
+  assert(dtype_in == float or dtype_in == double or dtype_in == complex32 or dtype_in == complex64, "input type must be float/double/complex32/complex64")
+  assert(dtype_out == complex32 or dtype_out == complex64, "output type must be complex32/complex64")
 
   -- Identify if it is a R2C transform: real_flag is true if an R2C transform
   local real_flag = false
@@ -57,7 +59,6 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     real_flag = true
   end
 
-  assert(dim >= 1 and dim <= 3, "currently only 1 <= dim <= 3 is supported")
 
   local iface = {}
 
@@ -104,8 +105,9 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
         end
       end
 
-      -- regentlib.assert(offsets[0].offset == terralib.sizeof(complex64), "stride does not match expected value")
+      regentlib.assert(offsets[0].offset == terralib.sizeof(t), "stride does not match expected value")
       destroy_accessor(accessor)
+      
       return base_pointer
     end
 
@@ -116,7 +118,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       var accessor = get_accessor(physical, field)
       var base_pointer = [&t](raw_rect_ptr(accessor, rect, &subrect, &(offsets[0])))
 
-      -- regentlib.assert(offsets[0].offset == terralib.sizeof(complex64), "stride does not match expected value")
+      regentlib.assert(offsets[0].offset == terralib.sizeof(t), "stride does not match expected value")
       destroy_accessor(accessor)
       return offsets
     end
@@ -273,11 +275,10 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     end
   end
 
-  --- Make plan.
+  --- Creates the FFT plan.
   -- @param input Input region.
   -- @param output Output region.
   -- @param plan Plan region.
-  -- @note To execute it in a separate task, it must be wrapped into a task.
   -- @note Calls `make_plan_gpu` if necessary.
    __demand(__inline)
   task iface.make_plan(input : region(ispace(itype), dtype_in),output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan))
@@ -318,43 +319,42 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     -- any computation
     format.println("Calling fftw_plan_dft to store fftw_plan in p.p...")
 
+    -- AK Note: I don't actually understand this that well, how the size of each dimension is stored in the 'n' array
+    var n : int[dim]
+    ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)] --n is a array of size dim storing the size of each dimension
+
     -- R2C: Float to Complex32
     if dtype_size == 8 and real_flag then
       format.println("R2C: Float to Complex32: Not Supported")
-      -- AK Note: I don't actually understand this that well, how the size of each dimension is stored in the 'n' array
-      var n : int[dim]
-      ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)] --n is a array of size dim storing the size of each dimension
       format.println("calling fftwf_plan_dft_r2c")
       -- p.float_p = fftw_c.fftwf_plan_dft_r2c(dim, &n[0], [&float](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_ESTIMATE)
 
     elseif dtype_size == 8 then
       format.println("R2C: Complex32 to Complex32: Not Supported")
-      var n : int[dim]
-      ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
       format.println("calling fftwf_plan_dft")
       -- p.float_p = fftw_c.fftwf_plan_dft(dim, &n[0], [&fftw_c.fftwf_complex](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_FORWARD, fftw_c.FFTW_ESTIMATE)
 
     elseif dtype_size == 16 and real_flag then
       format.println("R2C: Double to Complex64: Calling fftw_plan_dft_r2c")
-      var n : int[dim]
-      ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
       p.p = fftw_c.fftw_plan_dft_r2c(dim, &n[0], [&double](input_base), [&fftw_c.fftw_complex](output_base), fftw_c.FFTW_ESTIMATE)
 
     elseif dtype_size == 16 then
       format.println("R2C: Complex64 to Complex64: Calling fftw_plan_dft_r2c")
-      var n : int[dim]
-      ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
       format.println("n[0] is {}, dim is {}", n[0], dim)
       p.p = fftw_c.fftw_plan_dft(dim, &n[0], [&fftw_c.fftw_complex](input_base), [&fftw_c.fftw_complex](output_base), fftw_c.FFTW_FORWARD, fftw_c.FFTW_ESTIMATE)
     end
 
     p.address_space = address_space
 
-    if gpu_available then
-      format.println("Num of local GPUs: {}", iface.get_num_local_gpus())
-      if iface.get_num_local_gpus() > 0 then
-        format.println("GPUs identified: calling make_plan_gpu...")
-        make_plan_gpu(input, output, plan, p.address_space)
+    rescape
+      if gpu_available then
+        remit rquote
+          format.println("Num of local GPUs: {}", iface.get_num_local_gpus())
+          if iface.get_num_local_gpus() > 0 then
+            format.println("GPUs identified: calling make_plan_gpu...")
+            make_plan_gpu(input, output, plan, p.address_space)
+          end
+        end
       end
     end
   end
@@ -503,11 +503,15 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     format.println("Size of dtype is {}", dtype_size)
 
     -- If GPUs, call make_plan_gpu_batch
-    if gpu_available then
-      format.println("Num_local_gpus is {}", iface.get_num_local_gpus())
-      if iface.get_num_local_gpus() > 0 then
-        format.println("GPUs identified: calling make_plan_gpu_batch...")
-        make_plan_gpu_batch(input, output, plan, p.address_space)
+    rescape
+      if gpu_available then
+        remit rquote
+          format.println("Num_local_gpus is {}", iface.get_num_local_gpus())
+          if iface.get_num_local_gpus() > 0 then
+            format.println("GPUs identified: calling make_plan_gpu_batch...")
+            make_plan_gpu_batch(input, output, plan, p.address_space)
+          end
+        end
       end
     end
 
@@ -524,56 +528,39 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     -- type[In] – The transform data type: Z2Z or D2Z.
     -- batch[In] – How many batches should be computed: 7
 
+    var n : int[dim]
+    ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
+
     -- R2C: Float to Complex32
     if dtype_size == 8 and real_flag then
       format.println("R2C: Float to Complex32: Not Supported for CPU mode")
-      var n : int[dim]
-      ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
       format.println("calling fftwf_plan_dft_r2c")
       --p.float_p = fftw_c.fftwf_plan_dft_r2c(dim, &n[0], [&float](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_ESTIMATE) --Commented out because not supported: FFTW does not support float and double on single install
 
     -- C2C: Complex32 to Complex32
     elseif dtype_size == 8 then
       format.println("R2C: Complex32 to Complex32: Not Supported for CPU mode")
-      var n : int[dim]
-      ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
       format.println("calling fftwf_plan_dft")
       -- p.float_p = fftw_c.fftwf_plan_dft(dim, &n[0], [&fftw_c.fftwf_complex](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_FORWARD, fftw_c.FFTW_ESTIMATE) --Commented out because not supported: FFTW does not support float and double on single install
 
     -- R2C: Double to Complex64
     elseif dtype_size == 16 and real_flag then
       format.println("R2C: Double to Complex64: Calling fftw_plan_dft_r2c")
-      var n : int[dim]
-      ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
 
       -- Define 'n' array: n is an array of size rank, describing the size of
       -- each dimension. For batched transforms, we want to exclude the last
       -- dimension as that is the number of batches
-      --
-      -- AK Note: There must be a better way to copy/slice arrays in regent
-      -- instead of naively using this for loop
       var n_batch : int[dim-1]
       for i = 0, dim do
         n_batch[i] = n[i]
       end
 
       format.println("fftw_plan_many_dft_r2c: n[0] = {}, n[1] = {}, n[2] = {}, n_batch[0] = {}, n_batch[1] = {}, i_dist = {}", n[0], n[1], n[2], n_batch[0], n_batch[1], i_dist)
-
-      -- AK Note: This is segfaulting now. Complex64 to Complex64 works somehow,
-      -- even though the call is the same
       p.p = fftw_c.fftw_plan_many_dft_r2c(dim-1, &n_batch[0], n[dim-1], [&double](input_base), &n_batch[0], 1, i_dist, [&fftw_c.fftw_complex](output_base), &n_batch[0], 1, i_dist, fftw_c.FFTW_ESTIMATE)
 
     -- C2C: Complex64 to Complex64
     elseif dtype_size == 16 then
-      var n : int[dim]
-      ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
 
-      -- Define 'n' array: n is an array of size rank, describing the size of
-      -- each dimension. For batched transforms, we want to exclude the last
-      -- dimension as that is the number of batches
-      --
-      -- AK Note: There must be a better way to copy/slice arrays in regent
-      -- instead of naively using this for loop
       var n_batch : int[dim-1]
       for i = 0, dim do
         n_batch[i] = n[i]
@@ -615,9 +602,14 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     -- T(x) is a cast from type T to a value x
     p.p = [fftw_c.fftw_plan](0)
 
-    if gpu_available then
-      p.cufft_p = 0
+    rescape
+      if gpu_available then
+        remit rquote
+          p.cufft_p = 0
+        end
+      end
     end
+
 
     fill(plan, p)
 
@@ -629,83 +621,120 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
   -- EXECUTE PLAN FUNCTIONS
 
+
+
+  local execute_plan_gpu
+  if gpu_available then
+    __demand(__cuda, __leaf)
+    task execute_plan_gpu(input : region(ispace(itype), dtype_in), output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan), address_space : c.legion_address_space_t)
+    where reads writes (input, output, plan) do
+
+      var p = iface.get_plan(plan, true)
+
+      -- Check if we are in GPU or CPU mode
+      var proc = get_executing_processor(__runtime())
+      format.println("execute_plan: TOC PROC IS {}", c.TOC_PROC) -- TOC = Throughput Oriented Core: Means we have a GPU
+      format.println("execute_plan: Processor kind is {}", c.legion_processor_kind(proc))
+      format.println("size of dtype is {}", dtype_size) -- dtype size is 8 for complex32 and 16 for complex64
+
+      -- If in GPU mode, use cufftExec
+      if c.legion_processor_kind(proc) == c.TOC_PROC then
+        c.printf("execute plan via cuFFT\n")
+        var i = c.legion_processor_address_space(proc)
+        regentlib.assert(address_space == i, "execute_plan_gpu must be executed on a processor in the same address space")
+
+        var input_base = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0])
+        var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0])
+
+        var ok = 0
+
+        -- dtype size is 8 for complex32 and 16 for complex64
+        format.println("size of dtype is {}", dtype_size)
+
+        -- R2C float to complex32
+        if dtype_size == 8 and real_flag then
+          format.println("Calling cufftExecR2C (Float to Complex32) ...")
+          -- ok = cufft_c.cufftExecR2C(p.cufft_p, [&cufft_c.cufftReal](input_base), [&cufft_c.cufftComplex](output_base))
+        -- C2C complex32 to complex32
+        elseif dtype_size == 8 then
+          format.println("Calling cufftExecC2C (Complex32 to Complex32)...")
+          ok = cufft_c.cufftExecC2C(p.cufft_p, [&cufft_c.cufftComplex](input_base), [&cufft_c.cufftComplex](output_base), cufft_c.CUFFT_FORWARD)
+        -- R2C double to complex64
+        elseif dtype_size == 16 and real_flag then
+          format.println("Calling cufftExecD2Z (Double to Complex64)...")
+          ok = cufft_c.cufftExecD2Z(p.cufft_p, [&cufft_c.cufftDoubleReal](input_base), [&cufft_c.cufftDoubleComplex](output_base))
+        -- C2C complex64 to complex64
+        elseif dtype_size == 16 then
+          format.println("Calling cufftExecZ2Z (Complex64 to Complex64)...")
+          ok = cufft_c.cufftExecZ2Z(p.cufft_p, [&cufft_c.cufftDoubleComplex](input_base), [&cufft_c.cufftDoubleComplex](output_base), cufft_c.CUFFT_FORWARD)
+        end
+
+        -- Check return values of Exec
+        if ok == cufft_c.CUFFT_INVALID_VALUE then
+          format.println("Invalid value in cufftExecZ2Z")
+        elseif ok == cufft_c.CUFFT_INVALID_PLAN then
+          format.println("Invalid plan passed to cufftExecZ2Z")
+        end
+
+        -- format.println("cufftExecZ2Z returned {}", ok)
+        regentlib.assert(ok == cufft_c.CUFFT_SUCCESS, "cufftExecZ2Z failed")
+        format.println("cufftExecZ2Z successful")
+
+      --GPU not identified: return error
+      else 
+        format.println("GPU processor not identified: TOC_PROC not equal to processor kind")
+        regentlib.assert(false, "make_plan_gpu must be executed on a GPU processor")
+      end
+    end
+  end
+
   --- Execute plan.
   -- @param input Input to execute plan on.
   -- @param output Output of the executed plan.
   -- @param plan Plan object used to execute plan.
   -- @note For GPU, it calls cufftExecZ2Z.
   -- @note For CPU, it calls fftw_execute_dft.
-   __demand(__inline)
+  __demand(__inline)
   task iface.execute_plan(input : region(ispace(itype), dtype_in), output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan))
-  where reads(input, plan), writes(output) do
+  where reads writes (input, output, plan) do
     format.println("In iface.execute_plan...")
 
     var p = iface.get_plan(plan, true)
+    var address_space = c.legion_processor_address_space(get_executing_processor(__runtime()))
     var input_base = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0])
     var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0])
 
-    -- Check if we are in GPU or CPU mode
-    var proc = get_executing_processor(__runtime())
-    format.println("execute_plan: TOC PROC IS {}", c.TOC_PROC) -- TOC = Throughput Oriented Core: Means we have a GPU
-    format.println("execute_plan: Processor kind is {}", c.legion_processor_kind(proc))
-    format.println("size of dtype is {}", dtype_size) -- dtype size is 8 for complex32 and 16 for complex64
-
-    -- If in GPU mode, use cufftExec
-    if c.legion_processor_kind(proc) == c.TOC_PROC then
-      c.printf("execute plan via cuFFT\n")
-      var ok = 0
-
-      -- dtype size is 8 for complex32 and 16 for complex64
-      format.println("size of dtype is {}", dtype_size)
-
-      -- R2C float to complex32
-      if dtype_size == 8 and real_flag then
-        format.println("Calling cufftExecR2C (Float to Complex32) ...")
-        -- ok = cufft_c.cufftExecR2C(p.cufft_p, [&cufft_c.cufftReal](input_base), [&cufft_c.cufftComplex](output_base))
-      -- C2C complex32 to complex32
-      elseif dtype_size == 8 then
-        format.println("Calling cufftExecC2C (Complex32 to Complex32)...")
-        ok = cufft_c.cufftExecC2C(p.cufft_p, [&cufft_c.cufftComplex](input_base), [&cufft_c.cufftComplex](output_base), cufft_c.CUFFT_FORWARD)
-      -- R2C double to complex64
-      elseif dtype_size == 16 and real_flag then
-        format.println("Calling cufftExecD2Z (Double to Complex64)...")
-        ok = cufft_c.cufftExecD2Z(p.cufft_p, [&cufft_c.cufftDoubleReal](input_base), [&cufft_c.cufftDoubleComplex](output_base))
-      -- C2C complex64 to complex64
-      elseif dtype_size == 16 then
-        format.println("Calling cufftExecZ2Z (Complex64 to Complex64)...")
-        ok = cufft_c.cufftExecZ2Z(p.cufft_p, [&cufft_c.cufftDoubleComplex](input_base), [&cufft_c.cufftDoubleComplex](output_base), cufft_c.CUFFT_FORWARD)
-      end
-
-      -- Check return values of Exec
-      if ok == cufft_c.CUFFT_INVALID_VALUE then
-        format.println("Invalid value in cufftExecZ2Z")
-      elseif ok == cufft_c.CUFFT_INVALID_PLAN then
-        format.println("Invalid plan passed to cufftExecZ2Z")
-      end
-
-      -- format.println("cufftExecZ2Z returned {}", ok)
-      regentlib.assert(ok == cufft_c.CUFFT_SUCCESS, "cufftExecZ2Z failed")
-      format.println("cufftExecZ2Z successful")
-
     -- Otherwise, we are in CPU mode: use FFTW if no GPU
-    else
-      c.printf("execute plan via FFTW\n")
-      --R2C float to complex32: Not supported
-      if dtype_size == 8 and real_flag then
-        format.println("Executing FFTW R2C Float to Complex32: Not Supported")
-        --fftw_c.fftwf_execute_dft_r2c(p.float_p, [&float](input_base), [&fftw_c.fftwf_complex](output_base))
-      -- C2C complex32 to complex32: Not supported
-      elseif dtype_size == 8 then
-        format.println("Executing FFTW C2C Complex32 to Complex32: Not Supported")
-        -- fftw_c.fftwf_execute_dft(p.float_p, [&fftw_c.fftwf_complex](input_base), [&fftw_c.fftwf_complex](output_base))
-      -- R2C double to complex64
-      elseif dtype_size == 16 and real_flag then
-        format.println("Executing FFTW R2C double to complex64")
-        fftw_c.fftw_execute_dft_r2c(p.p, [&double](input_base), [&fftw_c.fftw_complex](output_base))
-      -- C2C complex64 to complex64
-      elseif dtype_size == 16 then
-        format.println("Executing FFTW C2C complex64 to complex64")
-        fftw_c.fftw_execute_dft(p.p, [&fftw_c.fftw_complex](input_base), [&fftw_c.fftw_complex](output_base))
+    c.printf("execute plan via FFTW\n")
+    --R2C float to complex32: Not supported
+    if dtype_size == 8 and real_flag then
+      format.println("Executing FFTW R2C Float to Complex32: Not Supported")
+      --fftw_c.fftwf_execute_dft_r2c(p.float_p, [&float](input_base), [&fftw_c.fftwf_complex](output_base))
+    -- C2C complex32 to complex32: Not supported
+    elseif dtype_size == 8 then
+      format.println("Executing FFTW C2C Complex32 to Complex32: Not Supported")
+      -- fftw_c.fftwf_execute_dft(p.float_p, [&fftw_c.fftwf_complex](input_base), [&fftw_c.fftwf_complex](output_base))
+    -- R2C double to complex64
+    elseif dtype_size == 16 and real_flag then
+      format.println("Executing FFTW R2C double to complex64")
+      fftw_c.fftw_execute_dft_r2c(p.p, [&double](input_base), [&fftw_c.fftw_complex](output_base))
+    -- C2C complex64 to complex64
+    elseif dtype_size == 16 then
+      format.println("Executing FFTW C2C complex64 to complex64")
+      fftw_c.fftw_execute_dft(p.p, [&fftw_c.fftw_complex](input_base), [&fftw_c.fftw_complex](output_base))
+    end
+
+    p.address_space = address_space
+
+    rescape
+      if gpu_available then
+        remit rquote
+          format.println("Num of local GPUs: {}", iface.get_num_local_gpus())
+          if iface.get_num_local_gpus() > 0 then
+            format.println("GPUs identified: calling execute_plan_gpu...")
+            execute_plan_gpu(input, output, plan, p.address_space)
+          end
+        end
       end
     end
   end
@@ -714,13 +743,33 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   -- @param input Input to execute plan on.
   -- @param output Output of the executed plan.
   -- @param plan Plan object used to execute plan.
-  __demand(__cuda, __leaf)
   task iface.execute_plan_task(input : region(ispace(itype), dtype_in), output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan))
-  where reads(input, plan), reads writes(output) do
+  where reads writes (input, output, plan) do
     iface.execute_plan(input, output, plan)
   end
 
   -- DESTROY PLAN FUNCTIONS
+
+  local destroy_plan_gpu
+  if gpu_available then
+    __demand(__cuda, __leaf)
+    task destroy_plan_gpu(plan : region(ispace(int1d), iface.plan), address_space : c.legion_address_space_t)
+    where reads writes(plan) do
+
+      var p = iface.get_plan(plan, true)
+      var proc = get_executing_processor(__runtime())
+
+      -- If using GPUs, call cufftDestroy
+      if c.legion_processor_kind(proc) == c.TOC_PROC then
+        c.printf("Destroy plan via cuFFT\n")
+        -- Function: cufftResult cufftDestroy(cufftHandle plan)
+        var i = c.legion_processor_address_space(proc)
+        regentlib.assert(address_space == i, "destory_plan_gpu must be executed on a processor in the same address space")
+        cufft_c.cufftDestroy(p.cufft_p)
+        
+      end
+    end
+  end
 
   --- Destroy plan.
   -- @param plan Plan to be destroyed.
@@ -729,22 +778,30 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   __demand(__inline)
   task iface.destroy_plan(plan : region(ispace(int1d), iface.plan))
   where reads writes(plan) do
+
    format.println("In iface.destroy_plan...")
 
     var p = iface.get_plan(plan, true)
-    var proc = get_executing_processor(__runtime())
+    var address_space = c.legion_processor_address_space(get_executing_processor(__runtime()))
 
-    -- If using GPUs, call cufftDestroy
-    if c.legion_processor_kind(proc) == c.TOC_PROC then
-      c.printf("Destroy plan via cuFFT\n")
-      -- Function: cufftResult cufftDestroy(cufftHandle plan)
-      cufft_c.cufftDestroy(p.cufft_p)
-    else
-      -- Else, if on CPUs, call fftw_destroy
-      c.printf("Destroy plan via FFTW\n")
-      fftw_c.fftw_destroy_plan(p.p)
-      -- Commented out float version of FFTW: not supported
-      -- fftw_c.fftwf_destroy_plan(p.float_p)
+    c.printf("Destroy plan via FFTW\n")
+    fftw_c.fftw_destroy_plan(p.p)
+
+    -- Commented out float version of FFTW: not supported
+    -- fftw_c.fftwf_destroy_plan(p.float_p)
+
+    p.address_space = address_space
+
+    rescape
+      if gpu_available then
+        remit rquote
+          format.println("Num of local GPUs: {}", iface.get_num_local_gpus())
+          if iface.get_num_local_gpus() > 0 then
+            format.println("GPUs identified: calling destroy_plan_gpu...")
+            destroy_plan_gpu(plan, p.address_space)
+          end
+        end
+      end
     end
   end
 

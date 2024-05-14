@@ -105,7 +105,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
         end
       end
 
-      -- regentlib.assert(offsets[0].offset == terralib.sizeof(complex64), "stride does not match expected value")
+      regentlib.assert(offsets[0].offset == terralib.sizeof(t), "stride does not match expected value")
       destroy_accessor(accessor)
       
       return base_pointer
@@ -118,7 +118,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       var accessor = get_accessor(physical, field)
       var base_pointer = [&t](raw_rect_ptr(accessor, rect, &subrect, &(offsets[0])))
 
-      -- regentlib.assert(offsets[0].offset == terralib.sizeof(complex64), "stride does not match expected value")
+      regentlib.assert(offsets[0].offset == terralib.sizeof(t), "stride does not match expected value")
       destroy_accessor(accessor)
       return offsets
     end

@@ -275,7 +275,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     end
   end
 
-  --- Creates the FFT plan.
+  --- Creates the FFT plan. This is the __inline version of the task should the user wish to use that.
   -- @param input Input region.
   -- @param output Output region.
   -- @param plan Plan region.
@@ -571,8 +571,8 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     end
     p.address_space = address_space
   end
-
-  --- Make plan task.
+ 
+  --- Make plan task. As make_plan is a __demand(__inline) task, we provide make_plan_task as a wrapper for convenience, should the user wish to use a new task and not an inlined one.
   -- @param input Input region.
   -- @param output Output region.
   -- @param plan Plan region.
@@ -581,7 +581,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     iface.make_plan(input, output, plan)
   end
 
-  --- Make plan (distributed version).
+  --- Make plan (distributed version). This is intended to be called from inside the user's main and avoids the need for the user to directly (say) index launch make_plan_task repeatedly
   -- @param input Input region.
   -- @param input_part Input partition.
   -- @param output Output region.
@@ -688,7 +688,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     end
   end
 
-  --- Execute plan.
+  --- Execute plan. This is the __inline version of the task should the user wish to use that.
   -- @param input Input to execute plan on.
   -- @param output Output of the executed plan.
   -- @param plan Plan object used to execute plan.
@@ -739,7 +739,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     end
   end
 
-  --- Execute plan task.
+  --- Execute plan task. As execute_plan is a __demand(__inline) task, we provide make_plan_task as a wrapper for convenience, should the user wish to use a new task and not an inlined one.
   -- @param input Input to execute plan on.
   -- @param output Output of the executed plan.
   -- @param plan Plan object used to execute plan.
@@ -771,7 +771,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     end
   end
 
-  --- Destroy plan.
+  --- Destroy plan. This is the __inline version of the task should the user wish to use that.
   -- @param plan Plan to be destroyed.
   -- @note To execute it in a separate task, it must be wrapped into a task.
   -- @note That is what `destroy_plan_task` does.
@@ -805,14 +805,14 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     end
   end
 
-  --- Destroy plan task.
+  --- Destroy plan task. As destroy_plan is a __demand(__inline) task, we provide make_plan_task as a wrapper for convenience, should the user wish to use a new task and not an inlined one.
   -- @param plan Plan to be destroyed.
   task iface.destroy_plan_task(plan : region(ispace(int1d), iface.plan))
   where reads writes(plan) do
     iface.destroy_plan(plan)
   end
 
-  --- Destroy plan (distributed version).
+  --- Destroy plan (distributed version). This is intended to be called from inside the user's main and avoids the need for the user to directly (say) index launch destroy_plan_task repeatedly.
   -- @param plan Plan to be destroyed.
   -- @param plan_part Plan partition to be destroyed in `plan`.
   __demand(__inline)

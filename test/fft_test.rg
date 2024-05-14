@@ -21,25 +21,27 @@ local format = require("std/format")
 
 -- PRINT FUNCTIONS
 
-__demand(__inline, __leaf)
-task print_region_1d_float(title : rawstring, input : region(ispace(int1d), float))
-where reads (input) do
-  format.println("{} = [", title)
-  for x in input do
-    format.println("{},", input[x])
+local function make_print_region_task(title, input)
+  local t = regentlib.newsymbol(title, "t")
+  local i = regentlib.newsymbol(input, "i")
+  local task print_region_task([t], [i])
+  where reads (i) do
+    format.println("{} = [", t)
+    for x in i do
+      format.println("{},", i[x])
+    end
+    format.println("]")
   end
-  format.println("]")
+  return print_region_task
 end
 
-__demand(__inline, __leaf)
-task print_region_1d_double(title : rawstring, input : region(ispace(int1d), double))
-where reads (input) do
-  format.println("{} = [", title)
-  for x in input do
-    format.println("{},", input[x])
-  end
-  format.println("]")
-end
+local print_region_1d_float = make_print_region_task(rawstring, region(ispace(int1d), float))
+local print_region_1d_double = make_print_region_task(rawstring, region(ispace(int1d), double))
+-- local print_region_1d_complex32 = make_print_region_task(rawstring, region(ispace(int1d), complex32))
+-- local print_region_1d_complex64 = make_print_region_task(rawstring, region(ispace(int1d), complex64))
+-- local print_region_2d_complex64 = make_print_region_task(rawstring, region(ispace(int2d), complex64))
+local print_region_3d_double = make_print_region_task(rawstring, region(ispace(int3d), double))
+-- local print_region_3d_complex64 = make_print_region_task(rawstring, region(ispace(int3d), complex64))
 
 __demand(__inline, __leaf)
 task print_region_1d_complex32(title : rawstring, input : region(ispace(int1d), complex32))
@@ -76,17 +78,6 @@ where reads (input) do
 end
 
 __demand(__inline, __leaf)
-task print_region_3d_double(title : rawstring, input : region(ispace(int3d), double))
-where reads (input) do
-  format.println("{} = [", title)
-  format.println("Bounds = {}", input.bounds)
-  for x in input do
-    format.println("{},", input[x])
-  end
-  format.println("]")
-end
-
-__demand(__inline, __leaf)
 task print_region_3d_complex64(title : rawstring, input : region(ispace(int3d), complex64))
 where reads (input) do
   format.println("{} = [", title)
@@ -113,57 +104,27 @@ end
 
 -- COMPARISON FUNCTIONS
 
-__demand(__inline, __leaf)
-task compare_regions_1d_complex32(output : region(ispace(int1d), complex32), expected : region(ispace(int1d), complex32))
-where reads (output, expected) do
-  var status = "PASSED"
-  for x in output do
-    if (output[x].real ~= expected[x].real) or (output[x].imag ~= expected[x].imag) then
-      status = "FAILED"
-      break
+local function make_compare_region_task(output, expected)
+  local o = regentlib.newsymbol(output, "o")
+  local e = regentlib.newsymbol(expected, "e")
+  local task compare_region_task([o], [e])
+  where reads (o, e) do
+    var status = "PASSED"
+    for x in o do
+      if (o[x].real ~= e[x].real) or (o[x].imag ~= e[x].imag) then
+        status = "FAILED"
+        break
+      end
     end
+    return status
   end
-  return status
+  return compare_region_task
 end
 
-__demand(__inline, __leaf)
-task compare_regions_1d_complex64(output : region(ispace(int1d), complex64), expected : region(ispace(int1d), complex64))
-where reads (output, expected) do
-  var status = "PASSED"
-  for x in output do
-    if (output[x].real ~= expected[x].real) or (output[x].imag ~= expected[x].imag) then
-      status = "FAILED"
-      break
-    end
-  end
-  return status
-end
-
-__demand(__inline, __leaf)
-task compare_regions_2d_complex64(output : region(ispace(int2d), complex64), expected : region(ispace(int2d), complex64))
-where reads (output, expected) do
-  var status = "PASSED"
-  for x in output do
-    if (output[x].real ~= expected[x].real) or (output[x].imag ~= expected[x].imag) then
-      status = "FAILED"
-      break
-    end
-  end
-  return status
-end
-
-__demand(__inline, __leaf)
-task compare_regions_3d_complex64(output : region(ispace(int3d), complex64), expected : region(ispace(int3d), complex64))
-where reads (output, expected) do
-  var status = "PASSED"
-  for x in output do
-    if (output[x].real ~= expected[x].real) or (output[x].imag ~= expected[x].imag) then
-      status = "FAILED"
-      break
-    end
-  end
-  return status
-end
+local compare_regions_1d_complex32 = make_compare_region_task(region(ispace(int1d), complex32), region(ispace(int1d), complex32))
+local compare_regions_1d_complex64 = make_compare_region_task(region(ispace(int1d), complex64), region(ispace(int1d), complex64))
+local compare_regions_2d_complex64 = make_compare_region_task(region(ispace(int2d), complex64), region(ispace(int2d), complex64))
+local compare_regions_3d_complex64 = make_compare_region_task(region(ispace(int3d), complex64), region(ispace(int3d), complex64))
 
 --__demand(__inline, __leaf)
 --task compare_regions_4d_complex64(output : region(ispace(int4d), complex64), expected : region(ispace(int4d), complex64))

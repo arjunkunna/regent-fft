@@ -124,8 +124,9 @@ The input region should be initialized with index space of the form
 `ispace(<type>, N)`, where N is the size of the array, and `<type>` is either
 int1d/int2d/int3d depending on the dimension of the transform. The fieldspace of
 the region is the type supported by the transform - e.g, in a real-to-complex
-transform with doubles, the input array will have fieldspace `double` and output
-array will have fieldspace `complex64`.
+transform with double precision, the input array will have fieldspace `double` and output
+array will have fieldspace `complex64`. Larger fieldspaces that contain the appropriate types 
+can also be passed in via field polymorphism - [here](https://groups.google.com/g/legionusers/c/yvQa8BE6QD0/m/_1cL_w-aAAAJ) is an example.
 
 For example, in a 1D double-to-complex64 transform of size 3, the input and
 output regions may be initialized as follows:

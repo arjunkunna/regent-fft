@@ -274,16 +274,15 @@ Lastly, to destroy the plan:
 fft1d.destroy_plan_distrib(p, p_part)
 ```
 
-Note: This is a `__demand(__inline)` tasks, and `destroy_plan_distrib` will internally perform an index launch to destroy the plans on each node.
+Note: This is a `__demand(__inline)` task, and `destroy_plan_distrib` will internally perform an index launch to destroy the plans on each node.
 
 > [!IMPORTANT]
 > like `make_plan_distrib`, the index launch issued by `destroy_plan_distrib` must be mapped so that each point task runs on the node where the plan was originally created.
 
 ## Future Developments
 
-Next items in the pipeline include batch transforms, as well as distributed
-transforms across multiple nodes. Please submit an issue if there are specific
-features that may be helpful.
+Next items in the pipeline include distributed transforms across multiple nodes. 
+Please submit an issue if there are specific features that may be helpful.
 
 ## Authors
 

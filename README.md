@@ -225,6 +225,59 @@ For GPUs, both real-to-complex and complex-to-complex transforms are supported
 (for both `complex32` and `complex64`). For CPU, only `complex64`-to-`complex64`
 transforms are supported currently.
 
+### 6. Distributed Mode
+
+The API also supportes a distributed mode, where every machine in a distributed job executes an independent FFT of the same size. 
+
+To initialize in distributed mode, we might do the following: (in the example below, we have a `n` 1D complex64 - to - complex64 transform of size 3).
+
+```lua
+var n = fft1d.get_num_nodes()
+var p = region(ispace(int1d, n), fft1d.plan)
+var p_part = partition(equal, p, ispace(int1d, n))
+var r = region(ispace(int1d, 3*n), complex64)
+var r_part = partition(equal, r, ispace(int1d, n))
+var s = region(ispace(int1d, 3*n), complex64)
+var s_part = partition(equal, s, ispace(int1d, n))
+fft1d.make_plan_distrib(r, r_part, s, s_part, p, p_part)
+```
+
+Note the use of `get_num_nodes` to determine the size of the `p` region and partition. The task `make_plan_distrib` is a `__demand(__inline)` task that internally performs an index launch over the machine to initialize p.
+
+> [!IMPORTANT]
+> like `make_plan`, `make_plan_distrib` overwrites the input and output regions `r` and `s`.
+
+> [!IMPORTANT]
+> in order for the distributed API to work correctly, it is essential that each task in the index launch inside of `make_plan_distrib` is mapped onto a separate node. This ensures that when the region `p` is used later, there is a plan for every node in the machine.
+
+If there are partitions `r_part` and `s_part` that are distributed around the machine, one might do the following to execute the plan:
+
+```lua
+__demand(__index_launch)
+for i in r_part.colors do
+  fft1d.execute_plan_task(r_part[i], s_part[i], p)
+end
+```
+
+Note:  `execute_plan` is a `__demand(__inline)` task (as described above). The task `execute_plan_task` is simply a wrapper around execute_plan for convenience, to avoid needing to define this explicitly.
+
+> [!IMPORTANT]
+> because execute_plan is a `__demand(__inline)` task, it will never execute on the GPU (unless the parent task is running on the GPU). Therefore, in most cases it is necessary to use `execute_plan_task` if one wants to use the GPU.
+
+> [!IMPORTANT]
+> while `execute_plan_task` may be executed on the GPU, the contents of the `p` region must still be available on the CPU, because the plans must be used by the host-side code to launch the FFT kernels. Therefore, `when execute_plan_task` is mapped onto the GPU it is very important to map > the `p` region into zero-copy memory.
+
+Lastly, to destroy the plan:
+
+```lua
+fft1d.destroy_plan_distrib(p, p_part)
+```
+
+Note: This is a `__demand(__inline)` tasks, and `destroy_plan_distrib` will internally perform an index launch to destroy the plans on each node.
+
+> [!IMPORTANT]
+> like `make_plan_distrib`, the index launch issued by `destroy_plan_distrib` must be mapped so that each point task runs on the node where the plan was originally created.
+
 ## Future Developments
 
 Next items in the pipeline include batch transforms, as well as distributed

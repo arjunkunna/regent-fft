@@ -265,7 +265,7 @@ Note:  `execute_plan` is a `__demand(__inline)` task (as described above). The t
 > Because execute_plan is a `__demand(__inline)` task, it will never execute on the GPU (unless the parent task is running on the GPU). Therefore, in most cases it is necessary to use `execute_plan_task` if one wants to use the GPU.
 
 > [!IMPORTANT]
-> While `execute_plan_task` may be executed on the GPU, the contents of the `p` region must still be available on the CPU, because the plans must be used by the host-side code to launch the FFT kernels. Therefore, `when execute_plan_task` is mapped onto the GPUm it is very important to
+> While `execute_plan_task` may be executed on the GPU, the contents of the `p` region must still be available on the CPU, because the plans must be used by the host-side code to launch the FFT kernels. Therefore, when `execute_plan_task` is mapped onto the GPU, it is very important to
 > map the `p` region into zero-copy memory.
 
 Lastly, to destroy the plan:

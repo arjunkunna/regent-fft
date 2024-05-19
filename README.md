@@ -185,10 +185,10 @@ fft1d.destroy_plan(p)
 To illustrate how to perform a batched transform, let us use the example where
 you want to perform 7 batches of a 256 x 256 transform.
 
-In this case, the user creates a 3D interface: one dimension more than the dimension of the transform:
+Since the transform is a 2D one, the user creates a interface with `itype` of dimension N+1: in this case, an `int3d`. The last dimension is used to store the number of batches.
 
 ```lua
-local fft3d_batch = fft.generate_fft_interface(int3d, complex64, complex64)
+local fft2d_batch_complex64_complex64 = fft.generate_fft_interface(int3d, complex64, complex64)
 ```
 
 The input and output regions should be 256 x 256 x 7 arrays: i.e., the last
@@ -203,21 +203,21 @@ var p = region(ispace(int1d, 1), fft3d_batch_real.plan)
 The key difference is that we call `make_plan_batch` instead of `make_plan`
 
 ```lua
-fft3d_batch_real.make_plan_batch(r, s, p)
+fft2d_batch_complex64_complex64.make_plan_batch(r, s, p)
 ```
 
 Then, we execute and destroy as in the regular case.
 
 ```lua
-fft3d_batch_real.execute_plan_task(r, s, p)
-fft3d_batch_real.destroy_plan(p)
+fft2d_batch_complex64_complex64.execute_plan_task(r, s, p)
+fft2d_batch_complex64_complex64.destroy_plan(p)
 ```
 
 As you can see, the main points of differentiation from the regular transform
 API is that we input a region of dimension `n+1`, where the final dimension is
 the number of batches, and use `make_plan_batch` instead of `make_plan`
 
-Please also refer to the `test3d_batch` and `test3d_batch_real` examples in
+Please also refer to the `test_2d_complex64_to_complex64_batch_transform` and `test_2d_double_to_complex64_batch_transform` examples in
 `fft_test.rg` for reference.
 
 Batched transforms are supported on both CPU and GPUs, for 1 and 2 dimensions.
@@ -225,7 +225,7 @@ For GPUs, both real-to-complex and complex-to-complex transforms are supported
 (for both `complex32` and `complex64`). For CPU, only `complex64`-to-`complex64`
 transforms are supported currently.
 
-### 6. Distributed Mode
+#### 6. Distributed Mode
 
 The API also supportes a distributed mode, where every machine in a distributed job executes an independent FFT of the same size. 
 

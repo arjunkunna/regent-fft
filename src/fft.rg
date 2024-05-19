@@ -28,9 +28,51 @@ regentlib.linklibrary("libfftw3.so")
 
 -- Import cuFFT API
 local cufft_c
+local cufft_assert
 if gpu_available then
   cufft_c = terralib.includec("cufftXt.h")
   regentlib.linklibrary("libcufft.so")
+
+  terra cufft_assert(result: cufft_c.cufftResult)
+    var status = "UNKNOWN"
+    if result == 0 then
+      status = "CUFFT_SUCCESS"
+    elseif result == 1 then
+      status = "CUFFT_INVALID_PLAN"
+    elseif result == 2 then
+      status = "CUFFT_ALLOC_FAILED"
+    elseif result == 3 then
+      status = "CUFFT_INVALID_TYPE"
+    elseif result == 4 then
+      status = "CUFFT_INVALID_VALUE"
+    elseif result == 5 then
+      status = "CUFFT_INTERNAL_ERROR"
+    elseif result == 6 then
+      status = "CUFFT_EXEC_FAILED"
+    elseif result == 7 then
+      status = "CUFFT_SETUP_FAILED"
+    elseif result == 8 then
+      status = "CUFFT_INVALID_SIZE"
+    elseif result == 9 then
+      status = "CUFFT_UNALIGNED_DATA"
+    elseif result == 10 then
+      status = "CUFFT_INCOMPLETE_PARAMETER_LIST"
+    elseif result == 11 then
+      status = "CUFFT_INVALID_DEVICE"
+    elseif result == 12 then
+      status = "CUFFT_PARSE_ERROR"
+    elseif result == 13 then
+      status = "CUFFT_NO_WORKSPACE"
+    elseif result == 14 then
+      status = "CUFFT_NOT_IMPLEMENTED"
+    elseif result == 15 then
+      status = "CUFFT_LICENSE_ERROR"
+    elseif result == 16 then
+      status = "CUFFT_NOT_SUPPORTED"
+    end
+    c.printf("%s\n", status)
+    regentlib.assert(result == cufft_c.CUFFT_SUCCESS, status)
+  end
 end
 
 -- Define constants
@@ -58,7 +100,6 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   if dtype_in == double or dtype_in == float then
     real_flag = true
   end
-
 
   local iface = {}
 
@@ -91,6 +132,11 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     local raw_rect_ptr = c["legion_accessor_array_" .. d .. "d_raw_rect_ptr"]
     local destroy_accessor = c["legion_accessor_array_" .. d .. "d_destroy"]
 
+    local struct base_pointer_t {
+      base : &t,
+      offset : c.legion_byte_offset_t[d],
+    }
+
     local terra get_base(rect : rect_t, physical : c.legion_physical_region_t, field : c.legion_field_id_t)
       var subrect : rect_t
       var offsets : c.legion_byte_offset_t[d]
@@ -107,29 +153,20 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
       regentlib.assert(offsets[0].offset == terralib.sizeof(t), "stride does not match expected value")
       destroy_accessor(accessor)
-      
-      return base_pointer
+
+      var bp : base_pointer_t
+      bp.base = base_pointer
+      bp.offset = offsets
+      return bp
     end
 
-    -- Function to get base pointer of region: returns base_pointer
-    local terra get_offset(rect : rect_t, physical : c.legion_physical_region_t, field : c.legion_field_id_t)
-      var subrect : rect_t
-      var offsets : c.legion_byte_offset_t[d]
-      var accessor = get_accessor(physical, field)
-      var base_pointer = [&t](raw_rect_ptr(accessor, rect, &subrect, &(offsets[0])))
-
-      regentlib.assert(offsets[0].offset == terralib.sizeof(t), "stride does not match expected value")
-      destroy_accessor(accessor)
-      return offsets
-    end
-
-    return rect_t, get_base, get_offset
+    return rect_t, get_base
   end
 
   -- Define get_base functions for input, output, and plan regions
-  local rect_plan_t, get_base_plan, get_offset_plan = make_get_base(1, iface.plan) --get_base_plan returns a base_pointer to a region with fspace iface.plan. (always dim = 1 because plan regions are dim 1: 'var p = region(ispace(int1d, 1), fft1d.plan)')
-  local rect_in_t, get_base_in, get_offset_in = make_get_base(dim, dtype_in) --get_base returns a base pointer to a region with fspace dtype
-  local rect_out_t, get_base_out, get_offset_out = make_get_base(dim, dtype_out) --get_base returns a base pointer to a region with fspace dtype
+  local rect_plan_t, get_base_plan = make_get_base(1, iface.plan) -- get_base_plan returns a base_pointer to a region with fspace iface.plan. (always dim = 1 because plan regions are dim 1: 'var p = region(ispace(int1d, 1), fft1d.plan)')
+  local rect_in_t, get_base_in = make_get_base(dim, dtype_in) -- get_base returns a base pointer to a region with fspace dtype
+  local rect_out_t, get_base_out = make_get_base(dim, dtype_out) -- get_base returns a base pointer to a region with fspace dtype
 
   -- Takes a c.legion_runtime_t and returns c.legion_runtime_get_executing_processor(runtime, ctx)
   -- Used to branch on CPU vs GPU execution inside tasks
@@ -188,7 +225,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
     -- Get pointer to plan: get_base_plan returns a base_pointer to a region with fspace iface.plan
     format.println("Getting plan_base...")
-    var plan_base = get_base_plan(rect_plan_t(plan.ispace.bounds), __physical(plan)[0], __fields(plan)[0])
+    var plan_base = get_base_plan(rect_plan_t(plan.ispace.bounds), __physical(plan)[0], __fields(plan)[0]).base
     var i = c.legion_processor_address_space(get_executing_processor(__runtime()))
 
     var p : &iface.plan
@@ -226,51 +263,39 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       -- c.legion_runtime_t and returns
       -- c.legion_runtime_get_executing_processor(runtime, ctx)
       var proc = get_executing_processor(__runtime())
-      format.println("Make_Plan_GPU: TOC PROC IS {}",c.TOC_PROC)
+      format.println("Make_Plan_GPU: TOC PROC is {}", c.TOC_PROC)
       format.println("Make_Plan_GPU: Processor kind is {}", c.legion_processor_kind(proc))
 
-      if c.legion_processor_kind(proc) == c.TOC_PROC then
-        format.println("Processor is TOC, so running GPU functions")
-        var i = c.legion_processor_address_space(proc)
-        regentlib.assert(address_space == i, "make_plan_gpu must be executed on a processor in the same address space")
-
-        -- Get input and output bases
-        var input_base = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0])
-        var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0])
-        var lo = input.ispace.bounds.lo:to_point()
-        var hi = input.ispace.bounds.hi:to_point()
-        var n : int[dim] --n is an array of size dim with the size of each dimension in the entries
-        ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
-
-        -- Call cufftPlanMany: cufftResult cufftPlanMany(cufftHandle *plan, int rank, int *n, int *inembed, int istride, int idist, int *onembed, int ostride, int odist, cufftType type, int batch) --rank = dimensionality of transform (1,2,3)
-        format.println("Calling cufftPlanMany...")
-
-        var ok = 0
-        if dtype_size == 8 and real_flag then
-          format.println("Calling cufftPlanMany with CUFFT_R2C: Float to Complex32 ...")
-          ok = cufft_c.cufftPlanMany(&p.cufft_p, dim, &n[0], [&int](0), 0, 0, [&int](0), 0, 0, cufft_c.CUFFT_R2C, 1)
-        elseif dtype_size == 8 then
-          format.println("Calling cufftPlanMany with CUFFT_C2C: Complex32 to Complex32 ...")
-          ok = cufft_c.cufftPlanMany(&p.cufft_p, dim, &n[0], [&int](0), 0, 0, [&int](0), 0, 0, cufft_c.CUFFT_C2C, 1)
-        elseif real_flag and dtype_size == 16 then
-          format.println("Calling cufftPlanMany with CUFFT_D2Z: Complex32 to Complex32 ...")
-          ok = cufft_c.cufftPlanMany(&p.cufft_p, dim, &n[0], [&int](0), 0, 0, [&int](0), 0, 0, cufft_c.CUFFT_D2Z, 1)
-        elseif dtype_size == 16 then
-          format.println("Calling cufftPlanMany with CUFFT_Z2Z: Complex64 to Complex64 ... ...")
-          ok = cufft_c.cufftPlanMany(&p.cufft_p, dim, &n[0], [&int](0), 0, 0, [&int](0), 0, 0, cufft_c.CUFFT_Z2Z, 1)
-        end
-
-        -- Check return value of cufftPlanMany
-        if ok == cufft_c.CUFFT_INVALID_VALUE then
-          format.println("Invalid value in cufftPlanMany")
-        end
-
-        regentlib.assert(ok == cufft_c.CUFFT_SUCCESS, "cufftPlanMany failed")
-        format.println("cufftPlanMany Successful")
-
-      -- GPU not identified: return error
-      else
+      if c.legion_processor_kind(proc) ~= c.TOC_PROC then
         regentlib.assert(false, "make_plan_gpu must be executed on a GPU processor")
+      end
+
+      format.println("Processor is TOC, so running GPU functions")
+      var i = c.legion_processor_address_space(proc)
+      regentlib.assert(address_space == i, "make_plan_gpu must be executed on a processor in the same address space")
+
+      -- Get input and output bases
+      var input_base = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0]).base
+      var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0]).base
+      var lo = input.ispace.bounds.lo:to_point()
+      var hi = input.ispace.bounds.hi:to_point()
+      var n : int[dim] --n is an array of size dim with the size of each dimension in the entries
+      ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
+
+      -- Call cufftPlanMany: cufftResult cufftPlanMany(cufftHandle *plan, int rank, int *n, int *inembed, int istride, int idist, int *onembed, int ostride, int odist, cufftType type, int batch) --rank = dimensionality of transform (1,2,3)
+      format.println("Calling cufftPlanMany...")
+      if dtype_size == 8 and real_flag then
+        format.println("Calling cufftPlanMany with CUFFT_R2C: Float to Complex32 ...")
+        cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim, &n[0], [&int](0), 0, 0, [&int](0), 0, 0, cufft_c.CUFFT_R2C, 1))
+      elseif dtype_size == 8 then
+        format.println("Calling cufftPlanMany with CUFFT_C2C: Complex32 to Complex32 ...")
+        cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim, &n[0], [&int](0), 0, 0, [&int](0), 0, 0, cufft_c.CUFFT_C2C, 1))
+      elseif real_flag and dtype_size == 16 then
+        format.println("Calling cufftPlanMany with CUFFT_D2Z: Complex32 to Complex32 ...")
+        cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim, &n[0], [&int](0), 0, 0, [&int](0), 0, 0, cufft_c.CUFFT_D2Z, 1))
+      elseif dtype_size == 16 then
+        format.println("Calling cufftPlanMany with CUFFT_Z2Z: Complex64 to Complex64 ... ...")
+        cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim, &n[0], [&int](0), 0, 0, [&int](0), 0, 0, cufft_c.CUFFT_Z2Z, 1))
       end
     end
   end
@@ -298,8 +323,8 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     -- Get pointers to input and output regions
     -- get_base returns a base pointer to a region with ispace of dimension dim and fspace dtype. [local rect_t, get_base = make_get_base(dim, dtype)] [local terra get_base(rect : rect_t, physical : c.legion_physical_region_t, field : c.legion_field_id_t)]
 
-    var input_base = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0])
-    var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0])
+    var input_base = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0]).base
+    var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0]).base
 
     -- Info on argumentes from https://legion.stanford.edu/doxygen/class_legion_1_1_physical_region.html
     -- __physical(r.{f, g, ...}) returns an array of physical regions (legion_physical_region_t) for r, one per field, for fields f, g, etc. in the order that the fields are listed in the call.
@@ -375,91 +400,80 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       format.println("Make_Plan_GPU: TOC PROC IS {}",c.TOC_PROC)
       format.println("Make_Plan_GPU: Processor kind is {}", c.legion_processor_kind(proc))
 
-      if c.legion_processor_kind(proc) == c.TOC_PROC then
-        format.println("Processor is TOC, so running GPU functions")
-        var i = c.legion_processor_address_space(proc)
-        regentlib.assert(address_space == i, "make_plan_gpu_batch must be executed on a processor in the same address space")
+      if c.legion_processor_kind(proc) ~= c.TOC_PROC then
+        regentlib.assert(false, "make_plan_gpu_batch must be executed on a GPU processor")
+      end
 
-        var input_base = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0])
-        var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0])
-        var lo = input.ispace.bounds.lo:to_point()
-        var hi = input.ispace.bounds.hi:to_point()
-        var n : int[dim]
-        ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
+      format.println("Processor is TOC, so running GPU functions")
+      var i = c.legion_processor_address_space(proc)
+      regentlib.assert(address_space == i, "make_plan_gpu_batch must be executed on a processor in the same address space")
 
-        -- Define 'n' array: n is an array of size rank, describing the size of
-        -- each dimension. For batched transforms, we want to exclude the last
-        -- dimension as that is the number of batches.
-        --
-        -- AK Note: There must be a better way to copy/slice arrays in regent
-        -- instead of naively using this for loop.
-        var n_batch : int[dim-1]
-        for i = 0, dim do
-          n_batch[i] = n[i]
-        end
+      var input_base = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0]).base
+      var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0]).base
+      var lo = input.ispace.bounds.lo:to_point()
+      var hi = input.ispace.bounds.hi:to_point()
+      var n : int[dim]
+      ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
 
-        -- Set idist: idist is the distance between the first element of two
-        -- consecutive batches. In a transform where each batch is a 256x256
-        -- complex64 transform, offset_1 will be 16, offset_2 will be 16*256,
-        -- and offet_3 willbe 16*256*256. idist should be 256*256 in this case,
-        -- so we want offset_3/offset_1.
-        var offset_in = get_offset_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0])
-        var offset_1 = offset_in[0].offset
-        var offset_2 = offset_in[1].offset
-        var offset_3 = offset_in[2].offset
-        var i_dist = offset_3/offset_1
+      -- Define 'n' array: n is an array of size rank, describing the size of
+      -- each dimension. For batched transforms, we want to exclude the last
+      -- dimension as that is the number of batches.
+      --
+      -- AK Note: There must be a better way to copy/slice arrays in regent
+      -- instead of naively using this for loop.
+      var n_batch : int[dim-1]
+      for i = 0, dim do
+        n_batch[i] = n[i]
+      end
 
-        format.println("n[0] = {}, n[1] = {}, n[2] = {}, n_batch[0] = {}, n_batch[1] = {}, i_dist = {}", n[0], n[1], n[2], n_batch[0], n_batch[1], i_dist)
+      -- Set idist: idist is the distance between the first element of two
+      -- consecutive batches. In a transform where each batch is a 256x256
+      -- complex64 transform, offset_1 will be 16, offset_2 will be 16*256,
+      -- and offet_3 willbe 16*256*256. idist should be 256*256 in this case,
+      -- so we want offset_3/offset_1.
+      var offset_in = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0]).offset
+      var offset_1 = offset_in[0].offset
+      var offset_2 = offset_in[1].offset
+      var offset_3 = offset_in[2].offset
+      var i_dist = offset_3/offset_1
 
-        -- Call cufftPlanMany: cufftResult cufftPlanMany(cufftHandle *plan, int rank, int *n, int *inembed, int istride, int idist, int *onembed, int ostride, int odist, cufftType type, int batch) --rank = dimensionality of transform (1,2,3)
+      format.println("n[0] = {}, n[1] = {}, n[2] = {}, n_batch[0] = {}, n_batch[1] = {}, i_dist = {}", n[0], n[1], n[2], n_batch[0], n_batch[1], i_dist)
 
-        -- Taking a transform where {256x256x7} is passed (i.e. 7 batches of 256x256), the parameters should be as follows:
-        -- rank[In] – How many dimensions a single transform has: 2
-        -- n[In] - Array of size rank, describing the size of each dimension: {256, 256}
-        -- inembed[In] – Array of size rank. Here we pass the real dimensions of the input array. It should contain the dimension size + padding: {256, 256} again, because input is not padded.
-        -- istride[In] – Stride between two consecutive elements in lowest dimension: 1
-        -- idist[In] – Distance between two input batches: 256 * 256
-        -- onembed[In] – Array of size rank. Here we pass the real dimensions of the output array. It should contain the dimension size + padding: {256, 256} again, because input is not padded.
-        -- ostride[In] – Stride between two consecutive elements in lowest dimension: 1
-        -- odist[In] – Distance between two output batches: 256 * 256
-        -- type[In] – The transform data type: Z2Z or D2Z.
-        -- batch[In] – How many batches should be computed: 7
+      -- Call cufftPlanMany: cufftResult cufftPlanMany(cufftHandle *plan, int rank, int *n, int *inembed, int istride, int idist, int *onembed, int ostride, int odist, cufftType type, int batch) --rank = dimensionality of transform (1,2,3)
 
-        format.println("Calling cufftPlanMany for batched transform...")
-        var ok = 0
+      -- Taking a transform where {256x256x7} is passed (i.e. 7 batches of 256x256), the parameters should be as follows:
+      -- rank[In] – How many dimensions a single transform has: 2
+      -- n[In] - Array of size rank, describing the size of each dimension: {256, 256}
+      -- inembed[In] – Array of size rank. Here we pass the real dimensions of the input array. It should contain the dimension size + padding: {256, 256} again, because input is not padded.
+      -- istride[In] – Stride between two consecutive elements in lowest dimension: 1
+      -- idist[In] – Distance between two input batches: 256 * 256
+      -- onembed[In] – Array of size rank. Here we pass the real dimensions of the output array. It should contain the dimension size + padding: {256, 256} again, because input is not padded.
+      -- ostride[In] – Stride between two consecutive elements in lowest dimension: 1
+      -- odist[In] – Distance between two output batches: 256 * 256
+      -- type[In] – The transform data type: Z2Z or D2Z.
+      -- batch[In] – How many batches should be computed: 7
 
-        -- R2C: Float to Complex32
-        if dtype_size == 8 and real_flag then
-          format.println("Calling cufftPlanMany with CUFFT_R2C: Float to Complex32...")
-          ok = cufft_c.cufftPlanMany(&p.cufft_p, dim-1, &n_batch[0], &n_batch[0], 1, i_dist, &n_batch[0], 1, i_dist, cufft_c.CUFFT_R2C, n[dim-1])
+      format.println("Calling cufftPlanMany for batched transform...")
 
-        -- C2C: Complex32 to Complex32
-        elseif dtype_size == 8 then
-          format.println("Calling cufftPlanMany with CUFFT_C2C: Complex32 to Complex32 ...")
-          ok = cufft_c.cufftPlanMany(&p.cufft_p, dim-1, &n_batch[0], &n_batch[0], 1, i_dist, &n_batch[0], 1, i_dist, cufft_c.CUFFT_C2C, n[dim-1])
+      -- R2C: Float to Complex32
+      if dtype_size == 8 and real_flag then
+        format.println("Calling cufftPlanMany with CUFFT_R2C: Float to Complex32...")
+        cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim-1, &n_batch[0], &n_batch[0], 1, i_dist, &n_batch[0], 1, i_dist, cufft_c.CUFFT_R2C, n[dim-1]))
 
-        -- R2C: Double to Complex64
-        elseif real_flag and dtype_size == 16 then
-          format.println("Calling cufftPlanMany with CUFFT_D2Z: Double to Complex64 ...")
-          ok = cufft_c.cufftPlanMany(&p.cufft_p, dim-1, &n_batch[0], &n_batch[0], 1, i_dist, &n_batch[0], 1, i_dist, cufft_c.CUFFT_D2Z, n[dim-1])
+      -- C2C: Complex32 to Complex32
+      elseif dtype_size == 8 then
+        format.println("Calling cufftPlanMany with CUFFT_C2C: Complex32 to Complex32 ...")
+        cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim-1, &n_batch[0], &n_batch[0], 1, i_dist, &n_batch[0], 1, i_dist, cufft_c.CUFFT_C2C, n[dim-1]))
 
-        -- C2C: Complex64 to Complex64
-        elseif dtype_size == 16 then
-          format.println("Calling cufftPlanMany with CUFFT_Z2Z: Complex64 to Complex64 ...")
-          ok = cufft_c.cufftPlanMany(&p.cufft_p, dim-1, &n_batch[0], &n_batch[0], 1, i_dist, &n_batch[0], 1, i_dist, cufft_c.CUFFT_Z2Z, n[dim-1])
-        end
+      -- R2C: Double to Complex64
+      elseif real_flag and dtype_size == 16 then
+        format.println("Calling cufftPlanMany with CUFFT_D2Z: Double to Complex64 ...")
+        cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim-1, &n_batch[0], &n_batch[0], 1, i_dist, &n_batch[0], 1, i_dist, cufft_c.CUFFT_D2Z, n[dim-1]))
 
-        -- Check return value of cufftPlanMany, throw error if necessary
-        if ok == cufft_c.CUFFT_INVALID_VALUE then
-          format.println("Invalid value in cufftPlanMany")
-        end
-        regentlib.assert(ok == cufft_c.CUFFT_SUCCESS, "cufftPlanMany failed")
-        format.println("cufftPlanMany Successful")
-
-      -- GPU not identified: return error
-      else
-        format.println("GPU processor not identified: TOC_PROC not equal to processor kind")
-        regentlib.assert(false, "make_plan_gpu must be executed on a GPU processor")
+      -- C2C: Complex64 to Complex64
+      elseif dtype_size == 16 then
+        format.println("Calling cufftPlanMany with CUFFT_Z2Z: Complex64 to Complex64 ...")
+        cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim-1, &n_batch[0], &n_batch[0], 1, i_dist, &n_batch[0], 1, i_dist, cufft_c.CUFFT_Z2Z, n[dim-1]))
       end
     end
   end
@@ -480,9 +494,9 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     var address_space = c.legion_processor_address_space(get_executing_processor(__runtime()))
     regentlib.assert(input.ispace.bounds == output.ispace.bounds, "input and output regions must be identical in size")
 
-    var input_base = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0])
-    var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0])
-    var offset_in = get_offset_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0])
+    var input_base = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0]).base
+    var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0]).base
+    var offset_in = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0]).offset
 
     -- Set idist: idist is the distance between the first element of two
     -- consecutive batches. In a transform where each batch is a 256x256
@@ -571,7 +585,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     end
     p.address_space = address_space
   end
- 
+
   --- Make plan task. As make_plan is a __demand(__inline) task, we provide make_plan_task as a wrapper for convenience, should the user wish to use a new task and not an inlined one.
   -- @param input Input region.
   -- @param output Output region.
@@ -610,7 +624,6 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       end
     end
 
-
     fill(plan, p)
 
     __demand(__index_launch)
@@ -620,8 +633,6 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   end
 
   -- EXECUTE PLAN FUNCTIONS
-
-
 
   local execute_plan_gpu
   if gpu_available then
@@ -638,52 +649,36 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       format.println("size of dtype is {}", dtype_size) -- dtype size is 8 for complex32 and 16 for complex64
 
       -- If in GPU mode, use cufftExec
-      if c.legion_processor_kind(proc) == c.TOC_PROC then
-        c.printf("execute plan via cuFFT\n")
-        var i = c.legion_processor_address_space(proc)
-        regentlib.assert(address_space == i, "execute_plan_gpu must be executed on a processor in the same address space")
-
-        var input_base = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0])
-        var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0])
-
-        var ok = 0
-
-        -- dtype size is 8 for complex32 and 16 for complex64
-        format.println("size of dtype is {}", dtype_size)
-
-        -- R2C float to complex32
-        if dtype_size == 8 and real_flag then
-          format.println("Calling cufftExecR2C (Float to Complex32) ...")
-          -- ok = cufft_c.cufftExecR2C(p.cufft_p, [&cufft_c.cufftReal](input_base), [&cufft_c.cufftComplex](output_base))
-        -- C2C complex32 to complex32
-        elseif dtype_size == 8 then
-          format.println("Calling cufftExecC2C (Complex32 to Complex32)...")
-          ok = cufft_c.cufftExecC2C(p.cufft_p, [&cufft_c.cufftComplex](input_base), [&cufft_c.cufftComplex](output_base), cufft_c.CUFFT_FORWARD)
-        -- R2C double to complex64
-        elseif dtype_size == 16 and real_flag then
-          format.println("Calling cufftExecD2Z (Double to Complex64)...")
-          ok = cufft_c.cufftExecD2Z(p.cufft_p, [&cufft_c.cufftDoubleReal](input_base), [&cufft_c.cufftDoubleComplex](output_base))
-        -- C2C complex64 to complex64
-        elseif dtype_size == 16 then
-          format.println("Calling cufftExecZ2Z (Complex64 to Complex64)...")
-          ok = cufft_c.cufftExecZ2Z(p.cufft_p, [&cufft_c.cufftDoubleComplex](input_base), [&cufft_c.cufftDoubleComplex](output_base), cufft_c.CUFFT_FORWARD)
-        end
-
-        -- Check return values of Exec
-        if ok == cufft_c.CUFFT_INVALID_VALUE then
-          format.println("Invalid value in cufftExecZ2Z")
-        elseif ok == cufft_c.CUFFT_INVALID_PLAN then
-          format.println("Invalid plan passed to cufftExecZ2Z")
-        end
-
-        -- format.println("cufftExecZ2Z returned {}", ok)
-        regentlib.assert(ok == cufft_c.CUFFT_SUCCESS, "cufftExecZ2Z failed")
-        format.println("cufftExecZ2Z successful")
-
-      --GPU not identified: return error
-      else 
-        format.println("GPU processor not identified: TOC_PROC not equal to processor kind")
+      if c.legion_processor_kind(proc) ~= c.TOC_PROC then
         regentlib.assert(false, "make_plan_gpu must be executed on a GPU processor")
+      end
+
+      c.printf("execute plan via cuFFT\n")
+      var i = c.legion_processor_address_space(proc)
+      regentlib.assert(address_space == i, "execute_plan_gpu must be executed on a processor in the same address space")
+
+      var input_base = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0]).base
+      var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0]).base
+
+      -- dtype size is 8 for complex32 and 16 for complex64
+      format.println("size of dtype is {}", dtype_size)
+
+      -- R2C float to complex32
+      if dtype_size == 8 and real_flag then
+        format.println("Calling cufftExecR2C (Float to Complex32) ...")
+        -- cufft_assert(cufft_c.cufftExecR2C(p.cufft_p, [&cufft_c.cufftReal](input_base), [&cufft_c.cufftComplex](output_base)))
+      -- C2C complex32 to complex32
+      elseif dtype_size == 8 then
+        format.println("Calling cufftExecC2C (Complex32 to Complex32)...")
+        cufft_assert(cufft_c.cufftExecC2C(p.cufft_p, [&cufft_c.cufftComplex](input_base), [&cufft_c.cufftComplex](output_base), cufft_c.CUFFT_FORWARD))
+      -- R2C double to complex64
+      elseif dtype_size == 16 and real_flag then
+        format.println("Calling cufftExecD2Z (Double to Complex64)...")
+        cufft_assert(cufft_c.cufftExecD2Z(p.cufft_p, [&cufft_c.cufftDoubleReal](input_base), [&cufft_c.cufftDoubleComplex](output_base)))
+      -- C2C complex64 to complex64
+      elseif dtype_size == 16 then
+        format.println("Calling cufftExecZ2Z (Complex64 to Complex64)...")
+        cufft_assert(cufft_c.cufftExecZ2Z(p.cufft_p, [&cufft_c.cufftDoubleComplex](input_base), [&cufft_c.cufftDoubleComplex](output_base), cufft_c.CUFFT_FORWARD))
       end
     end
   end
@@ -701,8 +696,8 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
     var p = iface.get_plan(plan, true)
     var address_space = c.legion_processor_address_space(get_executing_processor(__runtime()))
-    var input_base = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0])
-    var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0])
+    var input_base = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0]).base
+    var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0]).base
 
     -- Otherwise, we are in CPU mode: use FFTW if no GPU
     c.printf("execute plan via FFTW\n")
@@ -765,8 +760,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
         -- Function: cufftResult cufftDestroy(cufftHandle plan)
         var i = c.legion_processor_address_space(proc)
         regentlib.assert(address_space == i, "destory_plan_gpu must be executed on a processor in the same address space")
-        cufft_c.cufftDestroy(p.cufft_p)
-        
+        cufft_assert(cufft_c.cufftDestroy(p.cufft_p))
       end
     end
   end

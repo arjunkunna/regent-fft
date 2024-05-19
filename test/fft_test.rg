@@ -37,11 +37,11 @@ end
 
 local print_region_1d_float = make_print_region_task(rawstring, region(ispace(int1d), float))
 local print_region_1d_double = make_print_region_task(rawstring, region(ispace(int1d), double))
--- local print_region_1d_complex32 = make_print_region_task(rawstring, region(ispace(int1d), complex32))
--- local print_region_1d_complex64 = make_print_region_task(rawstring, region(ispace(int1d), complex64))
--- local print_region_2d_complex64 = make_print_region_task(rawstring, region(ispace(int2d), complex64))
+--local print_region_1d_complex32 = make_print_region_task(rawstring, region(ispace(int1d), complex32))
+--local print_region_1d_complex64 = make_print_region_task(rawstring, region(ispace(int1d), complex64))
+--local print_region_2d_complex64 = make_print_region_task(rawstring, region(ispace(int2d), complex64))
 local print_region_3d_double = make_print_region_task(rawstring, region(ispace(int3d), double))
--- local print_region_3d_complex64 = make_print_region_task(rawstring, region(ispace(int3d), complex64))
+--local print_region_3d_complex64 = make_print_region_task(rawstring, region(ispace(int3d), complex64))
 
 __demand(__inline, __leaf)
 task print_region_1d_complex32(title : rawstring, input : region(ispace(int1d), complex32))
@@ -294,9 +294,12 @@ task test_1d_complex64_to_complex64_distrib_transform()
 
   -- Important: this overwrites r and s!
   fft1d_complex64_complex64.make_plan_distrib(r, r_part, s, s_part, p, p_part)
+
+  --fft1d_complex64_complex64.execute_plan_distrib(r, r_part, s, s_part, p)
+
   __demand(__index_launch)
   for i in r_part.colors do
-    fft1d_complex64_complex64.execute_plan_task(r_part[i], s_part[i], p)
+    fft1d_complex64_complex64.execute_plan_task(r_part[i], s_part[i], p_part[i])
   end
   fft1d_complex64_complex64.destroy_plan_distrib(p, p_part)
 
@@ -485,7 +488,7 @@ task main()
   test_1d_double_to_complex64_transform()
   test_1d_complex32_to_complex32_transform()
   test_1d_complex64_to_complex64_transform()
-  --test_1d_complex64_to_complex64_distrib_transform()
+  test_1d_complex64_to_complex64_distrib_transform()
   test_2d_complex64_to_complex64_transform()
   test_3d_complex64_to_complex64_transform()
   test_3d_complex64_to_complex64_batch_transform()

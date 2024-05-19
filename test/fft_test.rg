@@ -149,10 +149,10 @@ local fft3d_complex64_complex64 = fft.generate_fft_interface(int3d, complex64, c
 
 local fft1d_double_complex64 = fft.generate_fft_interface(int1d, double, complex64)
 local fft1d_float_complex32 = fft.generate_fft_interface(int1d, float, complex32)
-local fft3d_batch_complex64_complex64 = fft.generate_fft_interface(int3d, complex64, complex64)
-local fft3d_batch_double_complex64 = fft.generate_fft_interface(int3d, double, complex64)
+local fft2d_batch_complex64_complex64 = fft.generate_fft_interface(int3d, complex64, complex64)
+local fft2d_batch_double_complex64 = fft.generate_fft_interface(int3d, double, complex64)
 
---local fft4d_batch_complex64_complex64 = fft.generate_fft_interface(int4d, complex64, complex64)
+--local fft3d_batch_complex64_complex64 = fft.generate_fft_interface(int4d, complex64, complex64)
 
 -- TEST FUNCTIONS
 
@@ -383,12 +383,12 @@ task test_3d_complex64_to_complex64_transform()
 end
 
 __demand(__inline)
-task test_3d_complex64_to_complex64_batch_transform()
-  format.println(">> test_3d_complex64_to_complex64_batch_transform")
+task test_2d_complex64_to_complex64_batch_transform()
+  format.println(">> test_2d_complex64_to_complex64_batch_transform")
 
   var r = region(ispace(int3d, { 3, 3, 2 }), complex64)
   var s = region(ispace(int3d, { 3, 3, 2 }), complex64)
-  var p = region(ispace(int1d, 1), fft3d_batch_complex64_complex64.plan)
+  var p = region(ispace(int1d, 1), fft2d_batch_complex64_complex64.plan)
 
   for x in r do
     r[x].real = 3
@@ -396,9 +396,9 @@ task test_3d_complex64_to_complex64_batch_transform()
   end
   fill(s, 0)
 
-  fft3d_batch_complex64_complex64.make_plan_batch(r, s, p)
-  fft3d_batch_complex64_complex64.execute_plan(r, s, p)
-  fft3d_batch_complex64_complex64.destroy_plan(p)
+  fft2d_batch_complex64_complex64.make_plan_batch(r, s, p)
+  fft2d_batch_complex64_complex64.execute_plan(r, s, p)
+  fft2d_batch_complex64_complex64.destroy_plan(p)
 
   -- Verify
   var e = region(ispace(int3d, { 3, 3, 2 }), complex64)
@@ -413,16 +413,16 @@ task test_3d_complex64_to_complex64_batch_transform()
   print_region_3d_complex64("Expected", e)
 
   var status = compare_regions_3d_complex64(s, e)
-  format.println("<< test_3d_complex64_to_complex64_batch_transform [{}]", status)
+  format.println("<< test_2d_complex64_to_complex64_batch_transform [{}]", status)
 end
 
 __demand(__inline)
-task test_3d_double_to_complex64_batch_transform()
-  format.println(">> test_3d_double_to_complex64_batch_transform")
+task test_2d_double_to_complex64_batch_transform()
+  format.println(">> test_2d_double_to_complex64_batch_transform")
 
   var r = region(ispace(int3d, { 3, 3, 2 }), double)
   var s = region(ispace(int3d, { 3, 3, 2 }), complex64)
-  var p = region(ispace(int1d, 1), fft3d_batch_double_complex64.plan)
+  var p = region(ispace(int1d, 1), fft2d_batch_double_complex64.plan)
 
   -- fill(r, 3)
   for x in r do
@@ -430,9 +430,9 @@ task test_3d_double_to_complex64_batch_transform()
   end
   fill(s, 0)
 
-  fft3d_batch_double_complex64.make_plan_batch(r, s, p)
-  fft3d_batch_double_complex64.execute_plan(r, s, p)
-  fft3d_batch_double_complex64.destroy_plan(p)
+  fft2d_batch_double_complex64.make_plan_batch(r, s, p)
+  fft2d_batch_double_complex64.execute_plan(r, s, p)
+  fft2d_batch_double_complex64.destroy_plan(p)
 
   -- Verify
   var e = region(ispace(int3d, { 3, 3, 2 }), complex64)
@@ -445,17 +445,17 @@ task test_3d_double_to_complex64_batch_transform()
   print_region_3d_complex64("Expected", e)
 
   var status = compare_regions_3d_complex64(s, e)
-  format.println("<< test_3d_double_to_complex64_batch_transform [{}]", status)
+  format.println("<< test_2d_double_to_complex64_batch_transform [{}]", status)
 end
 
 
 --__demand(__inline)
---task test_4d_complex64_to_complex64_batch_transform()
---  format.println(">> test_4d_double_to_complex64_batch_transform")
+--task test_3d_complex64_to_complex64_batch_transform()
+--  format.println(">> test_3d_complex64_to_complex64_batch_transform")
 
 --  var r = region(ispace(int4d, { 3, 3, 3, 2 }), complex64)
 --  var s = region(ispace(int4d, { 3, 3, 3, 2 }), complex64)
---  var p = region(ispace(int1d, 1), fft4d_batch_complex64_complex64.plan)
+--  var p = region(ispace(int1d, 1), fft3d_batch_complex64_complex64.plan)
 
 --  for x in r do
 --    r[x].real = 3
@@ -463,9 +463,9 @@ end
 --  end
 --  fill(s, 0)
 
---  fft4d_batch_complex64_complex64.make_plan_batch(r, s, p)
---  fft4d_batch_complex64_complex64.execute_plan(r, s, p)
---  fft4d_batch_complex64_complex64.destroy_plan(p)
+--  fft3d_batch_complex64_complex64.make_plan_batch(r, s, p)
+--  fft3d_batch_complex64_complex64.execute_plan(r, s, p)
+--  fft3d_batch_complex64_complex64.destroy_plan(p)
 
   -- Verify
   --var e = region(ispace(int4d, { 3, 3, 3, 2 }), complex64)
@@ -480,7 +480,7 @@ end
   --print_region_4d_complex64("Expected", e)
 
   --var status = compare_regions_4d_complex64(s, e)
-  --format.println("<< test_4d_complex64_to_complex64_batch_transform [{}]", status)
+  --format.println("<< test_3d_complex64_to_complex64_batch_transform [{}]", status)
 --end
 
 task main()
@@ -491,9 +491,9 @@ task main()
   test_1d_complex64_to_complex64_distrib_transform()
   test_2d_complex64_to_complex64_transform()
   test_3d_complex64_to_complex64_transform()
-  test_3d_complex64_to_complex64_batch_transform()
-  test_3d_double_to_complex64_batch_transform()
-  --test_4d_complex64_to_complex64_batch_transform()
+  test_2d_complex64_to_complex64_batch_transform()
+  test_2d_double_to_complex64_batch_transform()
+  --test_3d_complex64_to_complex64_batch_transform()
 end
 
 regentlib.start(main, cmapper.register_mappers)

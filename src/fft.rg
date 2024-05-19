@@ -32,7 +32,6 @@ local cufft_assert
 if gpu_available then
   cufft_c = terralib.includec("cufftXt.h")
   regentlib.linklibrary("libcufft.so")
-
   terra cufft_assert(result: cufft_c.cufftResult)
     var status = "UNKNOWN"
     if result == 0 then
@@ -151,6 +150,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
         end
       end
 
+      c.printf("Offsets[0].offset is %d, terralib.sizeof(t) is %d", offsets[0].offset, terralib.sizeof(t))
       regentlib.assert(offsets[0].offset == terralib.sizeof(t), "stride does not match expected value")
       destroy_accessor(accessor)
 

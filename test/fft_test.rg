@@ -126,18 +126,18 @@ local compare_regions_1d_complex64 = make_compare_region_task(region(ispace(int1
 local compare_regions_2d_complex64 = make_compare_region_task(region(ispace(int2d), complex64), region(ispace(int2d), complex64))
 local compare_regions_3d_complex64 = make_compare_region_task(region(ispace(int3d), complex64), region(ispace(int3d), complex64))
 
---__demand(__inline, __leaf)
---task compare_regions_4d_complex64(output : region(ispace(int4d), complex64), expected : region(ispace(int4d), complex64))
---where reads (output, expected) do
---  var status = "PASSED"
---  for x in output do
---    if (output[x].real ~= expected[x].real) or (output[x].imag ~= expected[x].imag) then
---      status = "FAILED"
---      break
---    end
---  end
---  return status
---end
+__demand(__inline, __leaf)
+task compare_regions_4d_complex64(output : region(ispace(int4d), complex64), expected : region(ispace(int4d), complex64))
+where reads (output, expected) do
+  var status = "PASSED"
+  for x in output do
+    if (output[x].real ~= expected[x].real) or (output[x].imag ~= expected[x].imag) then
+      status = "FAILED"
+      break
+    end
+  end
+  return status
+end
 
 -- INTERFACES
 
@@ -449,39 +449,39 @@ task test_2d_double_to_complex64_batch_transform()
 end
 
 
---__demand(__inline)
---task test_3d_complex64_to_complex64_batch_transform()
---  format.println(">> test_3d_complex64_to_complex64_batch_transform")
+__demand(__inline)
+task test_3d_complex64_to_complex64_batch_transform()
+  format.println(">> test_3d_complex64_to_complex64_batch_transform")
 
---  var r = region(ispace(int4d, { 3, 3, 3, 2 }), complex64)
---  var s = region(ispace(int4d, { 3, 3, 3, 2 }), complex64)
---  var p = region(ispace(int1d, 1), fft3d_batch_complex64_complex64.plan)
+  var r = region(ispace(int4d, { 3, 3, 3, 2 }), complex64)
+  var s = region(ispace(int4d, { 3, 3, 3, 2 }), complex64)
+  var p = region(ispace(int1d, 1), fft3d_batch_complex64_complex64.plan)
 
---  for x in r do
---    r[x].real = 3
---    r[x].imag = 3
---  end
---  fill(s, 0)
+  for x in r do
+    r[x].real = 3
+    r[x].imag = 3
+  end
+  fill(s, 0)
 
---  fft3d_batch_complex64_complex64.make_plan_batch(r, s, p)
---  fft3d_batch_complex64_complex64.execute_plan(r, s, p)
---  fft3d_batch_complex64_complex64.destroy_plan(p)
+  fft3d_batch_complex64_complex64.make_plan_batch(r, s, p)
+  fft3d_batch_complex64_complex64.execute_plan(r, s, p)
+  fft3d_batch_complex64_complex64.destroy_plan(p)
 
   -- Verify
-  --var e = region(ispace(int4d, { 3, 3, 3, 2 }), complex64)
-  --fill(e, 0)
-  --e[{x=0, y=0, z=0, w=0}].real = 81
-  --e[{x=0, y=0, z=0, w=0}].imag = 81
-  --e[{x=0, y=0, z=0, w=1}].real = 27
-  --e[{x=0, y=0, z=0, w=1}].imag = 27
+  var e = region(ispace(int4d, { 3, 3, 3, 2 }), complex64)
+  fill(e, 0)
+  e[{x=0, y=0, z=0, w=0}].real = 81
+  e[{x=0, y=0, z=0, w=0}].imag = 81
+  e[{x=0, y=0, z=0, w=1}].real = 27
+  e[{x=0, y=0, z=0, w=1}].imag = 27
 
-  --print_region_4d_complex64("Input", r)
-  --print_region_4d_complex64("Output", s)
-  --print_region_4d_complex64("Expected", e)
+  print_region_4d_complex64("Input", r)
+  print_region_4d_complex64("Output", s)
+  print_region_4d_complex64("Expected", e)
 
-  --var status = compare_regions_4d_complex64(s, e)
-  --format.println("<< test_3d_complex64_to_complex64_batch_transform [{}]", status)
---end
+  var status = compare_regions_4d_complex64(s, e)
+  format.println("<< test_3d_complex64_to_complex64_batch_transform [{}]", status)
+end
 
 task main()
   test_1d_float_to_complex32_transform()
@@ -493,7 +493,7 @@ task main()
   test_3d_complex64_to_complex64_transform()
   test_2d_complex64_to_complex64_batch_transform()
   test_2d_double_to_complex64_batch_transform()
-  --test_3d_complex64_to_complex64_batch_transform()
+  test_3d_complex64_to_complex64_batch_transform()
 end
 
 regentlib.start(main, cmapper.register_mappers)

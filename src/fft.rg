@@ -435,7 +435,13 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       var offset_1 = offset_in[0].offset
       var offset_2 = offset_in[1].offset
       var offset_3 = offset_in[2].offset
-      var i_dist = offset_3/offset_1
+      var i_dist : int
+
+      if dim == 3 then
+        i_dist = offset_3/offset_1
+      elseif dim == 4 then
+        i_dist = offset_in[3].offset/offset_1
+      end
 
       format.println("n[0] = {}, n[1] = {}, n[2] = {}, n_batch[0] = {}, n_batch[1] = {}, i_dist = {}", n[0], n[1], n[2], n_batch[0], n_batch[1], i_dist)
 

@@ -90,17 +90,17 @@ where reads (input) do
 end
 
 
---__demand(__inline, __leaf)
---task print_region_4d_complex64(title : rawstring, input : region(ispace(int4d), complex64))
---where reads (input) do
---  format.println("{} = [", title)
---  format.println("Bounds = {}", input.bounds)
---  for x in input do
---    var c = input[x]
---    format.println("index {}: {} + {}j,", x, c.real, c.imag)
---  end
---  format.println("]")
---end
+__demand(__inline, __leaf)
+task print_region_4d_complex64(title : rawstring, input : region(ispace(int4d), complex64))
+where reads (input) do
+  format.println("{} = [", title)
+  format.println("Bounds = {}", input.bounds)
+  for x in input do
+    var c = input[x]
+    format.println("index {}: {} + {}j,", x, c.real, c.imag)
+  end
+  format.println("]")
+end
 
 -- COMPARISON FUNCTIONS
 
@@ -152,7 +152,7 @@ local fft1d_float_complex32 = fft.generate_fft_interface(int1d, float, complex32
 local fft2d_batch_complex64_complex64 = fft.generate_fft_interface(int3d, complex64, complex64)
 local fft2d_batch_double_complex64 = fft.generate_fft_interface(int3d, double, complex64)
 
---local fft3d_batch_complex64_complex64 = fft.generate_fft_interface(int4d, complex64, complex64)
+local fft3d_batch_complex64_complex64 = fft.generate_fft_interface(int4d, complex64, complex64)
 
 -- TEST FUNCTIONS
 
@@ -231,6 +231,8 @@ task test_1d_complex32_to_complex32_transform()
   -- Verify
   var e = region(ispace(int1d, 3), complex32)
   fill(e, 0)
+  e[0].real = 9
+  e[0].imag = 9
 
   print_region_1d_complex32("Input", r)
   print_region_1d_complex32("Output", s)
@@ -351,10 +353,10 @@ end
 
 __demand(__inline)
 task test_3d_complex64_to_complex64_transform()
-  format.println(">> test_2d_complex64_to_complex64_transform")
+  format.println(">> test_3d_complex64_to_complex64_transform")
 
-  var r = region(ispace(int3d, { 3, 2, 2 }), complex64)
-  var s = region(ispace(int3d, { 3, 2, 2 }), complex64)
+  var r = region(ispace(int3d, { 3, 3, 3 }), complex64)
+  var s = region(ispace(int3d, { 3, 3, 3 }), complex64)
   var p = region(ispace(int1d, 1), fft3d_complex64_complex64.plan)
 
   for x in r do
@@ -369,17 +371,17 @@ task test_3d_complex64_to_complex64_transform()
   fft3d_complex64_complex64.destroy_plan(p)
 
   -- Verify
-  var e = region(ispace(int3d, { 3, 2, 2 }), complex64)
+  var e = region(ispace(int3d, { 3, 3, 3 }), complex64)
   fill(e, 0)
-  e[{x=0, y=0, z=0}].real = 36
-  e[{x=0, y=0, z=0}].imag = 36
+  e[{x=0, y=0, z=0}].real = 81
+  e[{x=0, y=0, z=0}].imag = 81
 
   print_region_3d_complex64("Input", r)
   print_region_3d_complex64("Output", s)
   print_region_3d_complex64("Expected", e)
 
   var status = compare_regions_3d_complex64(s, e)
-  format.println("<< test_2d_complex64_to_complex64_transform [{}]", status)
+  format.println("<< test_3d_complex64_to_complex64_transform [{}]", status)
 end
 
 __demand(__inline)
@@ -472,8 +474,8 @@ task test_3d_complex64_to_complex64_batch_transform()
   fill(e, 0)
   e[{x=0, y=0, z=0, w=0}].real = 81
   e[{x=0, y=0, z=0, w=0}].imag = 81
-  e[{x=0, y=0, z=0, w=1}].real = 27
-  e[{x=0, y=0, z=0, w=1}].imag = 27
+  e[{x=0, y=0, z=0, w=1}].real = 81
+  e[{x=0, y=0, z=0, w=1}].imag = 81
 
   print_region_4d_complex64("Input", r)
   print_region_4d_complex64("Output", s)

@@ -90,7 +90,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   assert(regentlib.is_index_type(itype), "requires an index type as the first argument")
   local dim = itype.dim
   local dtype_size = terralib.sizeof(dtype_out)
-  assert(dim >= 1 and dim <= 3, "currently only 1 <= dim <= 3 is supported")
+  assert(dim >= 1 and dim <= 4, "currently only 1 <= dim <= 4 is supported")
   assert(dtype_in == float or dtype_in == double or dtype_in == complex32 or dtype_in == complex64, "input type must be float/double/complex32/complex64")
   assert(dtype_out == complex32 or dtype_out == complex64, "output type must be complex32/complex64")
 

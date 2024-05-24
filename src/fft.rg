@@ -25,6 +25,7 @@ local gpu_available = gpuhelper.check_gpu_available()
 local c = regentlib.c
 local fftw_c = terralib.includec("fftw3.h")
 regentlib.linklibrary("libfftw3.so")
+regentlib.linklibrary("libfftw3f.so")
 
 -- Import cuFFT API
 local cufft_c
@@ -89,16 +90,18 @@ local fft = {}
 function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   assert(regentlib.is_index_type(itype), "requires an index type as the first argument")
   local dim = itype.dim
-  local dtype_size = terralib.sizeof(dtype_out)
+  local dtype_out_size = terralib.sizeof(dtype_out)
   assert(dim >= 1 and dim <= 4, "currently only 1 <= dim <= 4 is supported")
   assert(dtype_in == float or dtype_in == double or dtype_in == complex32 or dtype_in == complex64, "input type must be float/double/complex32/complex64")
   assert(dtype_out == complex32 or dtype_out == complex64, "output type must be complex32/complex64")
 
-  -- Identify if it is a R2C transform: real_flag is true if an R2C transform
-  local real_flag = false
-  if dtype_in == double or dtype_in == float then
-    real_flag = true
-  end
+   -- Single-precision transforms
+  local float_to_complex32_transform = (dtype_in == float and dtype_out == complex32)
+  local complex32_to_complex32_transform = (dtype_in == complex32 and dtype_out == complex32)
+
+   -- Double-precision transforms
+  local double_to_complex64_transform = (dtype_in == double and dtype_out == complex64)
+  local complex64_to_complex64_transform = (dtype_in == complex64 and dtype_out == complex64)
 
   local iface = {}
 
@@ -284,16 +287,16 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
       -- Call cufftPlanMany: cufftResult cufftPlanMany(cufftHandle *plan, int rank, int *n, int *inembed, int istride, int idist, int *onembed, int ostride, int odist, cufftType type, int batch) --rank = dimensionality of transform (1,2,3)
       format.println("Calling cufftPlanMany...")
-      if dtype_size == 8 and real_flag then
+      if float_to_complex32_transform then
         format.println("Calling cufftPlanMany with CUFFT_R2C: Float to Complex32 ...")
         cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim, &n[0], [&int](0), 0, 0, [&int](0), 0, 0, cufft_c.CUFFT_R2C, 1))
-      elseif dtype_size == 8 then
+      elseif complex32_to_complex32_transform then
         format.println("Calling cufftPlanMany with CUFFT_C2C: Complex32 to Complex32 ...")
         cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim, &n[0], [&int](0), 0, 0, [&int](0), 0, 0, cufft_c.CUFFT_C2C, 1))
-      elseif real_flag and dtype_size == 16 then
-        format.println("Calling cufftPlanMany with CUFFT_D2Z: Complex32 to Complex32 ...")
+      elseif double_to_complex64_transform then
+        format.println("Calling cufftPlanMany with CUFFT_D2Z: Double to Complex64 ...")
         cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim, &n[0], [&int](0), 0, 0, [&int](0), 0, 0, cufft_c.CUFFT_D2Z, 1))
-      elseif dtype_size == 16 then
+      elseif complex64_to_complex64_transform then
         format.println("Calling cufftPlanMany with CUFFT_Z2Z: Complex64 to Complex64 ... ...")
         cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim, &n[0], [&int](0), 0, 0, [&int](0), 0, 0, cufft_c.CUFFT_Z2Z, 1))
       end
@@ -334,7 +337,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     var hi = input.ispace.bounds.hi:to_point()
 
     -- dtype size is 8 for complex32 and 16 for complex64
-    format.println("Size of dtype is {}", dtype_size)
+    format.println("Size of dtype is {}", dtype_out_size)
 
     -- Call fftw_c.fftw_plan_dft: fftw_plan_dft_1d(int n, fftw_complex *in,
     -- fftw_complex *out,int sign, unsigned flags). n is the size of transform,
@@ -349,21 +352,19 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)] --n is a array of size dim storing the size of each dimension
 
     -- R2C: Float to Complex32
-    if dtype_size == 8 and real_flag then
-      format.println("R2C: Float to Complex32: Not Supported")
-      format.println("calling fftwf_plan_dft_r2c")
-      -- p.float_p = fftw_c.fftwf_plan_dft_r2c(dim, &n[0], [&float](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_ESTIMATE)
+    if float_to_complex32_transform then
+      format.println("R2C: Float to Complex32: calling fftwf_plan_dft_r2c")
+      p.float_p = fftw_c.fftwf_plan_dft_r2c(dim, &n[0], [&float](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_ESTIMATE)
 
-    elseif dtype_size == 8 then
-      format.println("R2C: Complex32 to Complex32: Not Supported")
-      format.println("calling fftwf_plan_dft")
-      -- p.float_p = fftw_c.fftwf_plan_dft(dim, &n[0], [&fftw_c.fftwf_complex](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_FORWARD, fftw_c.FFTW_ESTIMATE)
-
-    elseif dtype_size == 16 and real_flag then
+    elseif complex32_to_complex32_transform then
+      format.println("R2C: Complex32 to Complex32: calling fftwf_plan_dft")
+      p.float_p = fftw_c.fftwf_plan_dft(dim, &n[0], [&fftw_c.fftwf_complex](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_FORWARD, fftw_c.FFTW_ESTIMATE)
+    
+    elseif double_to_complex64_transform then
       format.println("R2C: Double to Complex64: Calling fftw_plan_dft_r2c")
       p.p = fftw_c.fftw_plan_dft_r2c(dim, &n[0], [&double](input_base), [&fftw_c.fftw_complex](output_base), fftw_c.FFTW_ESTIMATE)
 
-    elseif dtype_size == 16 then
+    elseif complex64_to_complex64_transform then
       format.println("R2C: Complex64 to Complex64: Calling fftw_plan_dft_r2c")
       format.println("n[0] is {}, dim is {}", n[0], dim)
       p.p = fftw_c.fftw_plan_dft(dim, &n[0], [&fftw_c.fftw_complex](input_base), [&fftw_c.fftw_complex](output_base), fftw_c.FFTW_FORWARD, fftw_c.FFTW_ESTIMATE)
@@ -462,22 +463,22 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       format.println("Calling cufftPlanMany for batched transform...")
 
       -- R2C: Float to Complex32
-      if dtype_size == 8 and real_flag then
+      if float_to_complex32_transform then
         format.println("Calling cufftPlanMany with CUFFT_R2C: Float to Complex32...")
         cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim-1, &n_batch[0], &n_batch[0], 1, i_dist, &n_batch[0], 1, i_dist, cufft_c.CUFFT_R2C, n[dim-1]))
 
       -- C2C: Complex32 to Complex32
-      elseif dtype_size == 8 then
+      elseif complex32_to_complex32_transform then
         format.println("Calling cufftPlanMany with CUFFT_C2C: Complex32 to Complex32 ...")
         cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim-1, &n_batch[0], &n_batch[0], 1, i_dist, &n_batch[0], 1, i_dist, cufft_c.CUFFT_C2C, n[dim-1]))
 
       -- R2C: Double to Complex64
-      elseif real_flag and dtype_size == 16 then
+      elseif double_to_complex64_transform then
         format.println("Calling cufftPlanMany with CUFFT_D2Z: Double to Complex64 ...")
         cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim-1, &n_batch[0], &n_batch[0], 1, i_dist, &n_batch[0], 1, i_dist, cufft_c.CUFFT_D2Z, n[dim-1]))
 
       -- C2C: Complex64 to Complex64
-      elseif dtype_size == 16 then
+      elseif complex64_to_complex64_transform then
         format.println("Calling cufftPlanMany with CUFFT_Z2Z: Complex64 to Complex64 ...")
         cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim-1, &n_batch[0], &n_batch[0], 1, i_dist, &n_batch[0], 1, i_dist, cufft_c.CUFFT_Z2Z, n[dim-1]))
       end
@@ -520,7 +521,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     var hi = input.ispace.bounds.hi:to_point()
 
     -- dtype size is 8 for complex32 and 16 for complex64
-    format.println("Size of dtype is {}", dtype_size)
+    format.println("Size of dtype is {}", dtype_out_size)
 
     -- If GPUs, call make_plan_gpu_batch
     rescape
@@ -552,19 +553,16 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
 
     -- R2C: Float to Complex32
-    if dtype_size == 8 and real_flag then
-      format.println("R2C: Float to Complex32: Not Supported for CPU mode")
-      format.println("calling fftwf_plan_dft_r2c")
-      --p.float_p = fftw_c.fftwf_plan_dft_r2c(dim, &n[0], [&float](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_ESTIMATE) --Commented out because not supported: FFTW does not support float and double on single install
+    if float_to_complex32_transform then
+      format.println("R2C: Float to Complex32: calling fftwf_plan_dft_r2c")
+      p.float_p = fftw_c.fftwf_plan_dft_r2c(dim, &n[0], [&float](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_ESTIMATE)
 
     -- C2C: Complex32 to Complex32
-    elseif dtype_size == 8 then
-      format.println("R2C: Complex32 to Complex32: Not Supported for CPU mode")
-      format.println("calling fftwf_plan_dft")
-      -- p.float_p = fftw_c.fftwf_plan_dft(dim, &n[0], [&fftw_c.fftwf_complex](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_FORWARD, fftw_c.FFTW_ESTIMATE) --Commented out because not supported: FFTW does not support float and double on single install
-
-    -- R2C: Double to Complex64
-    elseif dtype_size == 16 and real_flag then
+    elseif complex32_to_complex32_transform then
+      format.println("R2C: Complex32 to Complex32: calling fftwf_plan_dft")
+      p.float_p = fftw_c.fftwf_plan_dft(dim, &n[0], [&fftw_c.fftwf_complex](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_FORWARD, fftw_c.FFTW_ESTIMATE)
+    
+    elseif double_to_complex64_transform then
       format.println("R2C: Double to Complex64: Calling fftw_plan_dft_r2c")
 
       -- Define 'n' array: n is an array of size rank, describing the size of
@@ -579,7 +577,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       p.p = fftw_c.fftw_plan_many_dft_r2c(dim-1, &n_batch[0], n[dim-1], [&double](input_base), &n_batch[0], 1, i_dist, [&fftw_c.fftw_complex](output_base), &n_batch[0], 1, i_dist, fftw_c.FFTW_ESTIMATE)
 
     -- C2C: Complex64 to Complex64
-    elseif dtype_size == 16 then
+    elseif complex64_to_complex64_transform then
 
       var n_batch : int[dim-1]
       for i = 0, dim do
@@ -652,7 +650,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       var proc = get_executing_processor(__runtime())
       format.println("execute_plan: TOC PROC IS {}", c.TOC_PROC) -- TOC = Throughput Oriented Core: Means we have a GPU
       format.println("execute_plan: Processor kind is {}", c.legion_processor_kind(proc))
-      format.println("size of dtype is {}", dtype_size) -- dtype size is 8 for complex32 and 16 for complex64
+      format.println("size of dtype is {}", dtype_out_size) -- dtype size is 8 for complex32 and 16 for complex64
 
       -- If in GPU mode, use cufftExec
       if c.legion_processor_kind(proc) ~= c.TOC_PROC then
@@ -667,22 +665,22 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0]).base
 
       -- dtype size is 8 for complex32 and 16 for complex64
-      format.println("size of dtype is {}", dtype_size)
+      format.println("size of dtype is {}", dtype_out_size)
 
       -- R2C float to complex32
-      if dtype_size == 8 and real_flag then
+      if float_to_complex32_transform then
         format.println("Calling cufftExecR2C (Float to Complex32) ...")
         -- cufft_assert(cufft_c.cufftExecR2C(p.cufft_p, [&cufft_c.cufftReal](input_base), [&cufft_c.cufftComplex](output_base)))
       -- C2C complex32 to complex32
-      elseif dtype_size == 8 then
+      elseif complex32_to_complex32_transform then
         format.println("Calling cufftExecC2C (Complex32 to Complex32)...")
         cufft_assert(cufft_c.cufftExecC2C(p.cufft_p, [&cufft_c.cufftComplex](input_base), [&cufft_c.cufftComplex](output_base), cufft_c.CUFFT_FORWARD))
       -- R2C double to complex64
-      elseif dtype_size == 16 and real_flag then
+      elseif double_to_complex64_transform then
         format.println("Calling cufftExecD2Z (Double to Complex64)...")
         cufft_assert(cufft_c.cufftExecD2Z(p.cufft_p, [&cufft_c.cufftDoubleReal](input_base), [&cufft_c.cufftDoubleComplex](output_base)))
       -- C2C complex64 to complex64
-      elseif dtype_size == 16 then
+      elseif complex64_to_complex64_transform then
         format.println("Calling cufftExecZ2Z (Complex64 to Complex64)...")
         cufft_assert(cufft_c.cufftExecZ2Z(p.cufft_p, [&cufft_c.cufftDoubleComplex](input_base), [&cufft_c.cufftDoubleComplex](output_base), cufft_c.CUFFT_FORWARD))
       end
@@ -706,21 +704,20 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0]).base
 
     -- Otherwise, we are in CPU mode: use FFTW if no GPU
-    c.printf("execute plan via FFTW\n")
+    format.println("execute plan via FFTW")
     --R2C float to complex32: Not supported
-    if dtype_size == 8 and real_flag then
-      format.println("Executing FFTW R2C Float to Complex32: Not Supported")
-      --fftw_c.fftwf_execute_dft_r2c(p.float_p, [&float](input_base), [&fftw_c.fftwf_complex](output_base))
+    if float_to_complex32_transform then
+      format.println("Executing FFTW R2C Float to Complex32: calling fftwf_execute_dft_r2c")
+      fftw_c.fftwf_execute_dft_r2c(p.float_p, [&float](input_base), [&fftw_c.fftwf_complex](output_base))
     -- C2C complex32 to complex32: Not supported
-    elseif dtype_size == 8 then
-      format.println("Executing FFTW C2C Complex32 to Complex32: Not Supported")
-      -- fftw_c.fftwf_execute_dft(p.float_p, [&fftw_c.fftwf_complex](input_base), [&fftw_c.fftwf_complex](output_base))
-    -- R2C double to complex64
-    elseif dtype_size == 16 and real_flag then
+    elseif complex32_to_complex32_transform then
+      format.println("Executing FFTW C2C Complex32 to Complex32: calling fftwf_execute_dft")
+      fftw_c.fftwf_execute_dft(p.float_p, [&fftw_c.fftwf_complex](input_base), [&fftw_c.fftwf_complex](output_base))
+    elseif double_to_complex64_transform then
       format.println("Executing FFTW R2C double to complex64")
       fftw_c.fftw_execute_dft_r2c(p.p, [&double](input_base), [&fftw_c.fftw_complex](output_base))
     -- C2C complex64 to complex64
-    elseif dtype_size == 16 then
+    elseif complex64_to_complex64_transform then
       format.println("Executing FFTW C2C complex64 to complex64")
       fftw_c.fftw_execute_dft(p.p, [&fftw_c.fftw_complex](input_base), [&fftw_c.fftw_complex](output_base))
     end
@@ -778,17 +775,16 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   __demand(__inline)
   task iface.destroy_plan(plan : region(ispace(int1d), iface.plan))
   where reads writes(plan) do
-
-   format.println("In iface.destroy_plan...")
+    format.println("In iface.destroy_plan...")
 
     var p = iface.get_plan(plan, true)
     var address_space = c.legion_processor_address_space(get_executing_processor(__runtime()))
 
-    c.printf("Destroy plan via FFTW\n")
+    format.println("Destroy plan via FFTW")
     fftw_c.fftw_destroy_plan(p.p)
 
     -- Commented out float version of FFTW: not supported
-    -- fftw_c.fftwf_destroy_plan(p.float_p)
+    fftw_c.fftwf_destroy_plan(p.float_p)
 
     p.address_space = address_space
 

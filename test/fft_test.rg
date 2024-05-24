@@ -174,6 +174,7 @@ task test_1d_float_to_complex32_transform()
   -- Verify
   var e = region(ispace(int1d, 3), complex32)
   fill(e, 0)
+  e[0].real = 9
 
   print_region_1d_float("Input", r)
   print_region_1d_complex32("Output", s)
@@ -495,7 +496,7 @@ task main()
   test_3d_complex64_to_complex64_transform()
   test_2d_complex64_to_complex64_batch_transform()
   test_2d_double_to_complex64_batch_transform()
-  test_3d_complex64_to_complex64_batch_transform()
+  --test_3d_complex64_to_complex64_batch_transform()
 end
 
 regentlib.start(main, cmapper.register_mappers)

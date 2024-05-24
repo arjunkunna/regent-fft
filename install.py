@@ -52,6 +52,8 @@ def driver(thread_count):
     os.mkdir(fftw_build)
     subprocess.check_call([os.path.join(fftw_src, 'configure'), '--enable-openmp', '--disable-mpi', '--enable-shared', '--with-pic', '--prefix=%s' % fftw_install], cwd=fftw_build)
     subprocess.check_call(['make', 'install', '-j%s' % thread_count], cwd=fftw_build)
+    subprocess.check_call([os.path.join(fftw_src, 'configure'), '--enable-openmp', '--disable-mpi', '--enable-shared', '--with-pic', '--enable-single', '--prefix=%s' % fftw_install], cwd=fftw_build)
+    subprocess.check_call(['make', 'install', '-j%s' % thread_count], cwd=fftw_build)
 
     with open(os.path.join(root_dir, 'env.sh'), 'w') as f:
         f.write(r'''

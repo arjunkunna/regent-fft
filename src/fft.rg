@@ -134,6 +134,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     local struct base_pointer_t {
       base : &t,
       offset : c.legion_byte_offset_t[d],
+      dtype_size : int
     }
 
     local terra get_base(rect : rect_t, 
@@ -159,6 +160,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       var bp : base_pointer_t
       bp.base = base_pointer
       bp.offset = offsets
+      bp.dtype_size = terralib.sizeof(t)
       return bp
     end
 
@@ -303,7 +305,9 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   -- @param plan Plan region.
   -- @note Calls `make_plan_gpu` if necessary.
    __demand(__inline)
-  task iface.make_plan(input : region(ispace(itype), dtype_in),output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan))
+  task iface.make_plan(input : region(ispace(itype), dtype_in),
+                       output : region(ispace(itype), dtype_out), 
+                       plan : region(ispace(int1d), iface.plan))
   where reads writes(input, output, plan) do
     format.println("In iface.make_plan...")
 
@@ -365,7 +369,10 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   local make_plan_gpu_batch
   if gpu_available then
     __demand(__cuda, __leaf)
-    task make_plan_gpu_batch(input : region(ispace(itype), dtype_in), output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan), address_space : c.legion_address_space_t)
+    task make_plan_gpu_batch(input : region(ispace(itype), dtype_in), 
+                             output : region(ispace(itype), dtype_out), 
+                             plan : region(ispace(int1d), iface.plan), 
+                             address_space : c.legion_address_space_t)
     where reads writes(input, output, plan) do
       format.println("In iface.make_plan_gpu_batch...")
 
@@ -388,12 +395,11 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0]).base
       var lo = input.ispace.bounds.lo:to_point()
       var hi = input.ispace.bounds.hi:to_point()
+      
       var n : int[dim]
       ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
 
-      -- Define 'n' array: n is an array of size rank, describing the size of
-      -- each dimension. For batched transforms, we want to exclude the last
-      -- dimension as that is the number of batches.
+      -- For batched transforms, we want to exclude the last dimension as that is the number of batches.
       var n_batch : int[dim-1]
       for i = 0, dim do
         n_batch[i] = n[i]
@@ -405,35 +411,40 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       -- and offet_3 willbe 16*256*256. idist should be 256*256 in this case,
       -- so we want offset_3/offset_1.
       var offset_in = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0]).offset
+      var dtype_size_in = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0]).dtype_size
       var offset_1 = offset_in[0].offset
       var offset_2 = offset_in[1].offset
       var offset_3 = offset_in[2].offset
       var i_dist : int
 
-      if dim == 3 then
+      if dim == 2 then 
+        i_dist = offset_2/offset_1
+      elseif dim == 3 then
         i_dist = offset_3/offset_1
       elseif dim == 4 then
         i_dist = offset_in[3].offset/offset_1
       end
+
+      var istride = offset_in[0].offset / dtype_size_in
 
       format.println("n[0] = {}, n[1] = {}, n[2] = {}, n_batch[0] = {}, n_batch[1] = {}, i_dist = {}", n[0], n[1], n[2], n_batch[0], n_batch[1], i_dist)
 
       format.println("Calling cufftPlanMany for batched transform...")
       if float_to_complex32_transform then
         format.println("Calling cufftPlanMany with CUFFT_R2C: Float to Complex32...")
-        cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim-1, &n_batch[0], &n_batch[0], 1, i_dist, &n_batch[0], 1, i_dist, cufft_c.CUFFT_R2C, n[dim-1]))
+        cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim-1, &n_batch[0], &n_batch[0], istride, i_dist, &n_batch[0], istride, i_dist, cufft_c.CUFFT_R2C, n[dim-1]))
 
       elseif complex32_to_complex32_transform then
         format.println("Calling cufftPlanMany with CUFFT_C2C: Complex32 to Complex32 ...")
-        cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim-1, &n_batch[0], &n_batch[0], 1, i_dist, &n_batch[0], 1, i_dist, cufft_c.CUFFT_C2C, n[dim-1]))
+        cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim-1, &n_batch[0], &n_batch[0], istride, i_dist, &n_batch[0], istride, i_dist, cufft_c.CUFFT_C2C, n[dim-1]))
 
       elseif double_to_complex64_transform then
         format.println("Calling cufftPlanMany with CUFFT_D2Z: Double to Complex64 ...")
-        cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim-1, &n_batch[0], &n_batch[0], 1, i_dist, &n_batch[0], 1, i_dist, cufft_c.CUFFT_D2Z, n[dim-1]))
+        cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim-1, &n_batch[0], &n_batch[0], istride, i_dist, &n_batch[0], istride, i_dist, cufft_c.CUFFT_D2Z, n[dim-1]))
 
       elseif complex64_to_complex64_transform then
         format.println("Calling cufftPlanMany with CUFFT_Z2Z: Complex64 to Complex64 ...")
-        cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim-1, &n_batch[0], &n_batch[0], 1, i_dist, &n_batch[0], 1, i_dist, cufft_c.CUFFT_Z2Z, n[dim-1]))
+        cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim-1, &n_batch[0], &n_batch[0], istride, i_dist, &n_batch[0], istride, i_dist, cufft_c.CUFFT_Z2Z, n[dim-1]))
       end
     end
   end
@@ -460,6 +471,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     var input_base = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0]).base
     var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0]).base
     var offset_in = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0]).offset
+    var dtype_in_size = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0]).dtype_size
 
     -- Set idist: idist is the distance between the first element of two
     -- consecutive batches. In a transform where each batch is a 256x256
@@ -469,7 +481,17 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     var offset_1 = offset_in[0].offset
     var offset_2 = offset_in[1].offset
     var offset_3 = offset_in[2].offset
-    var i_dist = offset_3/offset_1
+
+    var i_dist : int
+    if dim == 2 then 
+      i_dist = offset_2/offset_1
+    elseif dim == 3 then
+      i_dist = offset_3/offset_1
+    elseif dim == 4 then
+      i_dist = offset_in[3].offset/offset_1
+    end
+
+    var istride = offset_1 / dtype_in_size
 
     format.println("Offset 1 = {}, Offset 2 = {}, Offset 3 = {}", offset_1, offset_2, offset_3)
 
@@ -478,6 +500,8 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
     -- dtype size is 8 for complex32 and 16 for complex64
     format.println("Size of dtype is {}", dtype_out_size)
+
+    p.address_space = address_space
 
     -- If GPUs, call make_plan_gpu_batch
     rescape
@@ -495,36 +519,23 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     var n : int[dim]
     ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
 
-    if float_to_complex32_transform then
-      format.println("R2C: Float to Complex32: calling fftwf_plan_dft_r2c")
-      p.float_p = fftw_c.fftwf_plan_dft_r2c(dim, &n[0], [&float](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_ESTIMATE)
-
-    elseif complex32_to_complex32_transform then
-      format.println("R2C: Complex32 to Complex32: calling fftwf_plan_dft")
-      p.float_p = fftw_c.fftwf_plan_dft(dim, &n[0], [&fftw_c.fftwf_complex](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_FORWARD, fftw_c.FFTW_ESTIMATE)
-    
-    elseif double_to_complex64_transform then
-      format.println("R2C: Double to Complex64: Calling fftw_plan_dft_r2c")
-
-      -- Define 'n' array: n is an array of size rank, describing the size of
-      -- each dimension. For batched transforms, we want to exclude the last
-      -- dimension as that is the number of batches
-      var n_batch : int[dim-1]
-      for i = 0, dim do
-        n_batch[i] = n[i]
-      end
-      format.println("fftw_plan_many_dft_r2c: n[0] = {}, n[1] = {}, n[2] = {}, n_batch[0] = {}, n_batch[1] = {}, i_dist = {}", n[0], n[1], n[2], n_batch[0], n_batch[1], i_dist)
-      p.p = fftw_c.fftw_plan_many_dft_r2c(dim-1, &n_batch[0], n[dim-1], [&double](input_base), &n_batch[0], 1, i_dist, [&fftw_c.fftw_complex](output_base), &n_batch[0], 1, i_dist, fftw_c.FFTW_ESTIMATE)
-
-    elseif complex64_to_complex64_transform then
-      var n_batch : int[dim-1]
-      for i = 0, dim do
-        n_batch[i] = n[i]
-      end
-      format.println("n[0] = {}, n[1] = {}, n[2] = {}, n_batch[0] = {}, n_batch[1] = {}, i_dist = {}", n[0], n[1], n[2], n_batch[0], n_batch[1], i_dist)
-      p.p = fftw_c.fftw_plan_many_dft(dim-1, &n_batch[0], n[dim-1], [&fftw_c.fftw_complex](input_base), &n_batch[0], 1, i_dist, [&fftw_c.fftw_complex](output_base), &n_batch[0], 1, i_dist,  fftw_c.FFTW_FORWARD, fftw_c.FFTW_ESTIMATE)
+    --For batched transforms, we want to exclude the last dimension as that is the number of batches
+    var n_batch : int[dim-1]
+    for i = 0, dim do
+      n_batch[i] = n[i]
     end
-    p.address_space = address_space
+
+    if float_to_complex32_transform then
+      p.float_p = fftw_c.fftwf_plan_dft_r2c(dim, &n[0], [&float](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_ESTIMATE)
+    elseif complex32_to_complex32_transform then
+      p.float_p = fftw_c.fftwf_plan_dft(dim, &n[0], [&fftw_c.fftwf_complex](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_FORWARD, fftw_c.FFTW_ESTIMATE) 
+    elseif double_to_complex64_transform then
+      format.println("fftw_plan_many_dft_r2c: n[0] = {}, n[1] = {}, n[2] = {}, n_batch[0] = {}, n_batch[1] = {}, i_dist = {}", n[0], n[1], n[2], n_batch[0], n_batch[1], i_dist)
+      p.p = fftw_c.fftw_plan_many_dft_r2c(dim-1, &n_batch[0], n[dim-1], [&double](input_base), &n_batch[0], istride, i_dist, [&fftw_c.fftw_complex](output_base), &n_batch[0], istride, i_dist, fftw_c.FFTW_ESTIMATE)
+    elseif complex64_to_complex64_transform then
+      format.println("n[0] = {}, n[1] = {}, n[2] = {}, n_batch[0] = {}, n_batch[1] = {}, i_dist = {}", n[0], n[1], n[2], n_batch[0], n_batch[1], i_dist)
+      p.p = fftw_c.fftw_plan_many_dft(dim-1, &n_batch[0], n[dim-1], [&fftw_c.fftw_complex](input_base), &n_batch[0], istride, i_dist, [&fftw_c.fftw_complex](output_base), &n_batch[0], istride, i_dist,  fftw_c.FFTW_FORWARD, fftw_c.FFTW_ESTIMATE)
+    end
   end
 
   --- Make plan: task version. As make_plan is a __demand(__inline) task, we provide make_plan_task as a wrapper for convenience, should the user wish to use a new task and not an inlined one.

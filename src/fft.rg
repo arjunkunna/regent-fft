@@ -542,7 +542,9 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   -- @param input Input region.
   -- @param output Output region.
   -- @param plan Plan region.
-  task iface.make_plan_task(input : region(ispace(itype), dtype_in), output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan))
+  task iface.make_plan_task(input : region(ispace(itype), dtype_in),
+                            output : region(ispace(itype), dtype_out),
+                            plan : region(ispace(int1d), iface.plan))
   where reads writes(input, output, plan) do
     iface.make_plan(input, output, plan)
   end
@@ -555,7 +557,12 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   -- @param plan Plan region.
   -- @param plan_part Plan partition.
   __demand(__inline)
-  task iface.make_plan_distrib(input : region(ispace(itype), dtype_in), input_part : partition(disjoint, input, ispace(int1d)), output : region(ispace(itype), dtype_out), output_part : partition(disjoint, output, ispace(int1d)), plan : region(ispace(int1d), iface.plan), plan_part : partition(disjoint, plan, ispace(int1d)))
+  task iface.make_plan_distrib(input : region(ispace(itype), dtype_in), 
+                               input_part : partition(disjoint, input, ispace(int1d)), 
+                               output : region(ispace(itype), dtype_out), 
+                               output_part : partition(disjoint, output, ispace(int1d)), 
+                               plan : region(ispace(int1d), iface.plan), 
+                               plan_part : partition(disjoint, plan, ispace(int1d)))
   where reads writes(input, output, plan) do
 
     -- Get number of nodes and check consistency of nodes/colors
@@ -589,7 +596,10 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   local execute_plan_gpu
   if gpu_available then
     __demand(__cuda, __leaf)
-    task execute_plan_gpu(input : region(ispace(itype), dtype_in), output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan), address_space : c.legion_address_space_t)
+    task execute_plan_gpu(input : region(ispace(itype), dtype_in),
+                          output : region(ispace(itype), dtype_out),
+                          plan : region(ispace(int1d), iface.plan),
+                          address_space : c.legion_address_space_t)
     where reads writes (input, output, plan) do
 
       var p = iface.get_plan(plan, true)
@@ -642,7 +652,9 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   -- @note For GPU, it calls cufftExecZ2Z.
   -- @note For CPU, it calls fftw_execute_dft.
   __demand(__inline)
-  task iface.execute_plan(input : region(ispace(itype), dtype_in), output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan))
+  task iface.execute_plan(input : region(ispace(itype), dtype_in),
+                          output : region(ispace(itype), dtype_out),
+                          plan : region(ispace(int1d), iface.plan))
   where reads writes (input, output, plan) do
     format.println("In iface.execute_plan...")
 
@@ -689,7 +701,9 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   -- @param input Input to execute plan on.
   -- @param output Output of the executed plan.
   -- @param plan Plan object used to execute plan.
-  task iface.execute_plan_task(input : region(ispace(itype), dtype_in), output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan))
+  task iface.execute_plan_task(input : region(ispace(itype), dtype_in),
+                               output : region(ispace(itype), dtype_out),
+                              plan : region(ispace(int1d), iface.plan))
   where reads writes (input, output, plan) do
     iface.execute_plan(input, output, plan)
   end
@@ -759,7 +773,8 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   -- @param plan Plan to be destroyed.
   -- @param plan_part Plan partition to be destroyed in `plan`.
   __demand(__inline)
-  task iface.destroy_plan_distrib(plan : region(ispace(int1d), iface.plan), plan_part : partition(disjoint, plan, ispace(int1d)))
+  task iface.destroy_plan_distrib(plan : region(ispace(int1d), iface.plan), 
+                                  plan_part : partition(disjoint, plan, ispace(int1d)))
   where reads writes(plan) do
     format.println("In iface.destroy_plan_distrib...")
     for i in plan_part.colors do

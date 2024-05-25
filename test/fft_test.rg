@@ -39,7 +39,7 @@ local print_region_1d_float = make_print_region_task(rawstring, region(ispace(in
 local print_region_1d_double = make_print_region_task(rawstring, region(ispace(int1d), double))
 --local print_region_1d_complex32 = make_print_region_task(rawstring, region(ispace(int1d), complex32))
 --local print_region_1d_complex64 = make_print_region_task(rawstring, region(ispace(int1d), complex64))
-local print_region_2d_complex64 = make_print_region_task(rawstring, region(ispace(int2d), complex64))
+--local print_region_2d_complex64 = make_print_region_task(rawstring, region(ispace(int2d), complex64))
 local print_region_3d_double = make_print_region_task(rawstring, region(ispace(int3d), double))
 --local print_region_3d_complex64 = make_print_region_task(rawstring, region(ispace(int3d), complex64))
 

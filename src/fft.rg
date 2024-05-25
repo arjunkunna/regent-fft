@@ -75,7 +75,7 @@ if gpu_available then
   end
 end
 
--- Define constants
+-- Define constants: get defines from fftw3.h
 fftw_c.FFTW_FORWARD = -1
 fftw_c.FFTW_BACKWARD = 1
 fftw_c.FFTW_MEASURE = 0
@@ -84,7 +84,7 @@ fftw_c.FFTW_ESTIMATE = (2 ^ 6)
 local fft = {}
 
 --- Create the FFT interface.
--- @param itype Index type of transform (int2d/int2d/int3d).
+-- @param itype Index type of transform (int2d/int2d/int3d/int4d).
 -- @param dtype_in Input data type of transform (float/double/complex32/complex64).
 -- @param dtype_out Output data type of transform (complex32/complex64).
 function fft.generate_fft_interface(itype, dtype_in, dtype_out)
@@ -123,11 +123,8 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   end
 
   iface.plan = iface_plan
-  iface.plan.__no_field_slicing = true
+  iface.plan.__no_field_slicing = true --don't field slice this struct
 
-  -- Create function that returns a base_pointer to a region with ispace of
-  -- dimension d and fspace t d is dimension, t is dtype/region fspace
-  -- (complex64)
   local function make_get_base(d, t)
     local rect_t = c["legion_rect_" .. d .. "d_t"]
     local get_accessor = c["legion_physical_region_get_field_accessor_array_" .. d .. "d"]
@@ -139,7 +136,9 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       offset : c.legion_byte_offset_t[d],
     }
 
-    local terra get_base(rect : rect_t, physical : c.legion_physical_region_t, field : c.legion_field_id_t)
+    local terra get_base(rect : rect_t, 
+                physical : c.legion_physical_region_t, 
+                field : c.legion_field_id_t)
       var subrect : rect_t
       var offsets : c.legion_byte_offset_t[d]
       var accessor = get_accessor(physical, field)
@@ -167,11 +166,10 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   end
 
   -- Define get_base functions for input, output, and plan regions
-  local rect_plan_t, get_base_plan = make_get_base(1, iface.plan) -- get_base_plan returns a base_pointer to a region with fspace iface.plan. (always dim = 1 because plan regions are dim 1: 'var p = region(ispace(int1d, 1), fft1d.plan)')
-  local rect_in_t, get_base_in = make_get_base(dim, dtype_in) -- get_base returns a base pointer to a region with fspace dtype
-  local rect_out_t, get_base_out = make_get_base(dim, dtype_out) -- get_base returns a base pointer to a region with fspace dtype
+  local rect_plan_t, get_base_plan = make_get_base(1, iface.plan)
+  local rect_in_t, get_base_in = make_get_base(dim, dtype_in) 
+  local rect_out_t, get_base_out = make_get_base(dim, dtype_out) 
 
-  -- Takes a c.legion_runtime_t and returns c.legion_runtime_get_executing_processor(runtime, ctx)
   -- Used to branch on CPU vs GPU execution inside tasks
   local terra get_executing_processor(runtime : c.legion_runtime_t)
     var ctx = c.legion_runtime_get_context()
@@ -197,6 +195,10 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   task iface.get_tunable(tunable_id : int)
     var f = c.legion_runtime_select_tunable_value(__runtime(), __context(), tunable_id, 0, 0)
     var n = __future(int64, f)
+    -- (Elliott): I thought Regent was supposed to copy on
+    -- assignment, but that seems not to happen here, so this would
+    -- result in a double destroy if we free here.
+    -- c.legion_future_destroy(f)
     return n
   end
 
@@ -215,18 +217,13 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   where reads(plan) do
     format.println("In get_plan...")
 
-    -- Get physical region __physical(r.{f, g, ...}) returns an array of
-    -- physical regions (legion_physical_region_t) for r, one per field, for
-    -- fields f, g, etc. in the order that the fields are listed in the call.
     var pr = __physical(plan)[0] --returns first physical region
 
     regentlib.assert(c.legion_physical_region_get_memory_count(pr) == 1, "plan instance has more than one memory?")
 
-    -- Ensure that plan is in the right kind of memory
     var mem_kind = c.legion_memory_kind(c.legion_physical_region_get_memory(pr, 0))
     regentlib.assert(mem_kind == c.SYSTEM_MEM or mem_kind == c.REGDMA_MEM or mem_kind == c.Z_COPY_MEM, "plan instance must be stored in sysmem, regmem, or zero copy mem")
 
-    -- Get pointer to plan: get_base_plan returns a base_pointer to a region with fspace iface.plan
     format.println("Getting plan_base...")
     var plan_base = get_base_plan(rect_plan_t(plan.ispace.bounds), __physical(plan)[0], __fields(plan)[0]).base
     var i = c.legion_processor_address_space(get_executing_processor(__runtime()))
@@ -234,7 +231,6 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     var p : &iface.plan
     var bounds = plan.ispace.bounds
 
-    -- T(x) is a cast from type T to a value x: int1d(1) = number 1 (casted to type int1d)
     if bounds.hi - bounds.lo + 1 > int1d(1) then
       p = plan_base + i
     else
@@ -248,23 +244,21 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
   -- MAKE PLAN FUNCTIONS
 
-  -- Functions to create plan. Takes input, output, and plan regions and makes
-  -- plan using cufft/FFTW functions, storing it in iface_plan.p
-
-  -- Task: Make plan in GPU version. Calls cufftPlanMany and stores plan in cufft_p
+  -- Creates the FFT plan - GPU version. Called by make_plan if necessary.
   local make_plan_gpu
   if gpu_available then
     __demand(__cuda, __leaf)
-    task make_plan_gpu(input : region(ispace(itype), dtype_in), output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan), address_space : c.legion_address_space_t)
+    task make_plan_gpu(input : region(ispace(itype), dtype_in), 
+                       output : region(ispace(itype), dtype_out), 
+                       plan : region(ispace(int1d), iface.plan), 
+                       address_space : c.legion_address_space_t)
     where reads writes(input, output, plan) do
       format.println("In iface.make_plan_gpu...")
 
       -- Get pointer to plan
       var p = iface.get_plan(plan, true)
 
-      -- Verify we are in GPU mode by checking TOC_PROC Takes a
-      -- c.legion_runtime_t and returns
-      -- c.legion_runtime_get_executing_processor(runtime, ctx)
+      -- Verify we are in GPU mode
       var proc = get_executing_processor(__runtime())
       format.println("Make_Plan_GPU: TOC PROC is {}", c.TOC_PROC)
       format.println("Make_Plan_GPU: Processor kind is {}", c.legion_processor_kind(proc))
@@ -285,7 +279,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       var n : int[dim] --n is an array of size dim with the size of each dimension in the entries
       ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
 
-      -- Call cufftPlanMany: cufftResult cufftPlanMany(cufftHandle *plan, int rank, int *n, int *inembed, int istride, int idist, int *onembed, int ostride, int odist, cufftType type, int batch) --rank = dimensionality of transform (1,2,3)
+      -- Create plans
       format.println("Calling cufftPlanMany...")
       if float_to_complex32_transform then
         format.println("Calling cufftPlanMany with CUFFT_R2C: Float to Complex32 ...")
@@ -317,41 +311,23 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     format.println("Calling get_plan...")
     var p = iface.get_plan(plan, false)
 
-    -- Get_executing process: takes a c.legion_runtime_t and returns c.legion_runtime_get_executing_processor(runtime, ctx)
     var address_space = c.legion_processor_address_space(get_executing_processor(__runtime())) --legion_processor_address_space: takes a legion_processor_t proc and returns a legion_address_space_t
 
-    -- Check input/output bounds. Bounds code example: var is = ispace(int1d, 12, -1). is.bounds returns rect1d { lo = int1d(-1), hi = int1d(10) }
     regentlib.assert(input.ispace.bounds == output.ispace.bounds, "input and output regions must be identical in size")
 
     -- Get pointers to input and output regions
-    -- get_base returns a base pointer to a region with ispace of dimension dim and fspace dtype. [local rect_t, get_base = make_get_base(dim, dtype)] [local terra get_base(rect : rect_t, physical : c.legion_physical_region_t, field : c.legion_field_id_t)]
-
     var input_base = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0]).base
     var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0]).base
-
-    -- Info on argumentes from https://legion.stanford.edu/doxygen/class_legion_1_1_physical_region.html
-    -- __physical(r.{f, g, ...}) returns an array of physical regions (legion_physical_region_t) for r, one per field, for fields f, g, etc. in the order that the fields are listed in the call.
-    -- __fields(r.{f, g, ...}) returns an array of the field IDs (legion_field_id_t) of r, one per field, for fields f, g, etc. in the order that the fields are listed in the call.
 
     var lo = input.ispace.bounds.lo:to_point()
     var hi = input.ispace.bounds.hi:to_point()
 
-    -- dtype size is 8 for complex32 and 16 for complex64
-    format.println("Size of dtype is {}", dtype_out_size)
-
-    -- Call fftw_c.fftw_plan_dft: fftw_plan_dft_1d(int n, fftw_complex *in,
-    -- fftw_complex *out,int sign, unsigned flags). n is the size of transform,
-    -- in and out are pointers to the input and output arrays. Sign is the sign
-    -- of the exponent in the transform, can either be FFTW_FORWARD (1) or
-    -- FFTW_BACKWARD (-1). Flags: FFTW_ESTIMATE, on the contrary, does not run
-    -- any computation
     format.println("Calling fftw_plan_dft to store fftw_plan in p.p...")
 
-    -- AK Note: I don't actually understand this that well, how the size of each dimension is stored in the 'n' array
+     -- Populate n: array of size dim storing the size of each dimension
     var n : int[dim]
-    ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)] --n is a array of size dim storing the size of each dimension
+    ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
 
-    -- R2C: Float to Complex32
     if float_to_complex32_transform then
       format.println("R2C: Float to Complex32: calling fftwf_plan_dft_r2c")
       p.float_p = fftw_c.fftwf_plan_dft_r2c(dim, &n[0], [&float](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_ESTIMATE)
@@ -385,7 +361,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     end
   end
 
-  -- Task: make_plan_batch in GPU version. Calls cufftPlanMany and stores plan in cufft_p
+  -- Creates the FFT plan - GPU + batch version. Called by make_plan_batch if necessary.
   local make_plan_gpu_batch
   if gpu_available then
     __demand(__cuda, __leaf)
@@ -395,8 +371,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
       var p = iface.get_plan(plan, true)
 
-      -- Verify we are in GPU mode by checking TOC_PROC
-      -- Takes a c.legion_runtime_t and returns c.legion_runtime_get_executing_processor(runtime, ctx)
+      -- Verify we are in GPU mode
       var proc = get_executing_processor(__runtime())
       format.println("Make_Plan_GPU: TOC PROC IS {}",c.TOC_PROC)
       format.println("Make_Plan_GPU: Processor kind is {}", c.legion_processor_kind(proc))
@@ -419,9 +394,6 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       -- Define 'n' array: n is an array of size rank, describing the size of
       -- each dimension. For batched transforms, we want to exclude the last
       -- dimension as that is the number of batches.
-      --
-      -- AK Note: There must be a better way to copy/slice arrays in regent
-      -- instead of naively using this for loop.
       var n_batch : int[dim-1]
       for i = 0, dim do
         n_batch[i] = n[i]
@@ -446,38 +418,19 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
       format.println("n[0] = {}, n[1] = {}, n[2] = {}, n_batch[0] = {}, n_batch[1] = {}, i_dist = {}", n[0], n[1], n[2], n_batch[0], n_batch[1], i_dist)
 
-      -- Call cufftPlanMany: cufftResult cufftPlanMany(cufftHandle *plan, int rank, int *n, int *inembed, int istride, int idist, int *onembed, int ostride, int odist, cufftType type, int batch) --rank = dimensionality of transform (1,2,3)
-
-      -- Taking a transform where {256x256x7} is passed (i.e. 7 batches of 256x256), the parameters should be as follows:
-      -- rank[In] – How many dimensions a single transform has: 2
-      -- n[In] - Array of size rank, describing the size of each dimension: {256, 256}
-      -- inembed[In] – Array of size rank. Here we pass the real dimensions of the input array. It should contain the dimension size + padding: {256, 256} again, because input is not padded.
-      -- istride[In] – Stride between two consecutive elements in lowest dimension: 1
-      -- idist[In] – Distance between two input batches: 256 * 256
-      -- onembed[In] – Array of size rank. Here we pass the real dimensions of the output array. It should contain the dimension size + padding: {256, 256} again, because input is not padded.
-      -- ostride[In] – Stride between two consecutive elements in lowest dimension: 1
-      -- odist[In] – Distance between two output batches: 256 * 256
-      -- type[In] – The transform data type: Z2Z or D2Z.
-      -- batch[In] – How many batches should be computed: 7
-
       format.println("Calling cufftPlanMany for batched transform...")
-
-      -- R2C: Float to Complex32
       if float_to_complex32_transform then
         format.println("Calling cufftPlanMany with CUFFT_R2C: Float to Complex32...")
         cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim-1, &n_batch[0], &n_batch[0], 1, i_dist, &n_batch[0], 1, i_dist, cufft_c.CUFFT_R2C, n[dim-1]))
 
-      -- C2C: Complex32 to Complex32
       elseif complex32_to_complex32_transform then
         format.println("Calling cufftPlanMany with CUFFT_C2C: Complex32 to Complex32 ...")
         cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim-1, &n_batch[0], &n_batch[0], 1, i_dist, &n_batch[0], 1, i_dist, cufft_c.CUFFT_C2C, n[dim-1]))
 
-      -- R2C: Double to Complex64
       elseif double_to_complex64_transform then
         format.println("Calling cufftPlanMany with CUFFT_D2Z: Double to Complex64 ...")
         cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim-1, &n_batch[0], &n_batch[0], 1, i_dist, &n_batch[0], 1, i_dist, cufft_c.CUFFT_D2Z, n[dim-1]))
 
-      -- C2C: Complex64 to Complex64
       elseif complex64_to_complex64_transform then
         format.println("Calling cufftPlanMany with CUFFT_Z2Z: Complex64 to Complex64 ...")
         cufft_assert(cufft_c.cufftPlanMany(&p.cufft_p, dim-1, &n_batch[0], &n_batch[0], 1, i_dist, &n_batch[0], 1, i_dist, cufft_c.CUFFT_Z2Z, n[dim-1]))
@@ -491,7 +444,10 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   -- @param plan Plan region.
   -- @note Calls make_plan_gpu_batch if necessary.
   __demand(__inline)
-  task iface.make_plan_batch(input : region(ispace(itype), dtype_in), output : region(ispace(itype), dtype_out), plan : region(ispace(int1d), iface.plan))
+  task iface.make_plan_batch(input : region(ispace(itype), dtype_in), 
+                             output : region(ispace(itype), dtype_out), 
+                             plan : region(ispace(int1d), iface.plan))
+
   where reads writes(input, output, plan) do
     format.println("In iface.make_plan_batch...")
 
@@ -536,28 +492,13 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       end
     end
 
-    -- Call fftw_plan fftw_plan_many_dft(int rank, const int *n, int howmany, fftw_complex *in, const int *inembed, int istride, int idist, fftw_complex *out, const int *onembed, int ostride, int odist, int sign, unsigned flags)
-    -- Taking a transform where {256x256x7} is passed (i.e. 7 batches of 256x256), the parameters should be as follows:
-    -- rank[In] – How many dimensions a single transform has: 2
-    -- n[In] - Array of size rank, describing the size of each dimension: {256, 256}
-    -- inembed[In] – Array of size rank. Here we pass the real dimensions of the input array. It should contain the dimension size + padding: {256, 256} again, because input is not padded.
-    -- istride[In] – Stride between two consecutive elements in lowest dimension: 1
-    -- idist[In] – Distance between two input batches: 256 * 256
-    -- onembed[In] – Array of size rank. Here we pass the real dimensions of the output array. It should contain the dimension size + padding: {256, 256} again, because input is not padded.
-    -- ostride[In] – Stride between two consecutive elements in lowest dimension: 1
-    -- odist[In] – Distance between two output batches: 256 * 256
-    -- type[In] – The transform data type: Z2Z or D2Z.
-    -- batch[In] – How many batches should be computed: 7
-
     var n : int[dim]
     ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
 
-    -- R2C: Float to Complex32
     if float_to_complex32_transform then
       format.println("R2C: Float to Complex32: calling fftwf_plan_dft_r2c")
       p.float_p = fftw_c.fftwf_plan_dft_r2c(dim, &n[0], [&float](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_ESTIMATE)
 
-    -- C2C: Complex32 to Complex32
     elseif complex32_to_complex32_transform then
       format.println("R2C: Complex32 to Complex32: calling fftwf_plan_dft")
       p.float_p = fftw_c.fftwf_plan_dft(dim, &n[0], [&fftw_c.fftwf_complex](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_FORWARD, fftw_c.FFTW_ESTIMATE)
@@ -572,25 +513,21 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       for i = 0, dim do
         n_batch[i] = n[i]
       end
-
       format.println("fftw_plan_many_dft_r2c: n[0] = {}, n[1] = {}, n[2] = {}, n_batch[0] = {}, n_batch[1] = {}, i_dist = {}", n[0], n[1], n[2], n_batch[0], n_batch[1], i_dist)
       p.p = fftw_c.fftw_plan_many_dft_r2c(dim-1, &n_batch[0], n[dim-1], [&double](input_base), &n_batch[0], 1, i_dist, [&fftw_c.fftw_complex](output_base), &n_batch[0], 1, i_dist, fftw_c.FFTW_ESTIMATE)
 
-    -- C2C: Complex64 to Complex64
     elseif complex64_to_complex64_transform then
-
       var n_batch : int[dim-1]
       for i = 0, dim do
         n_batch[i] = n[i]
       end
-
       format.println("n[0] = {}, n[1] = {}, n[2] = {}, n_batch[0] = {}, n_batch[1] = {}, i_dist = {}", n[0], n[1], n[2], n_batch[0], n_batch[1], i_dist)
       p.p = fftw_c.fftw_plan_many_dft(dim-1, &n_batch[0], n[dim-1], [&fftw_c.fftw_complex](input_base), &n_batch[0], 1, i_dist, [&fftw_c.fftw_complex](output_base), &n_batch[0], 1, i_dist,  fftw_c.FFTW_FORWARD, fftw_c.FFTW_ESTIMATE)
     end
     p.address_space = address_space
   end
 
-  --- Make plan task. As make_plan is a __demand(__inline) task, we provide make_plan_task as a wrapper for convenience, should the user wish to use a new task and not an inlined one.
+  --- Make plan: task version. As make_plan is a __demand(__inline) task, we provide make_plan_task as a wrapper for convenience, should the user wish to use a new task and not an inlined one.
   -- @param input Input region.
   -- @param output Output region.
   -- @param plan Plan region.
@@ -617,7 +554,6 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     regentlib.assert(input_part.colors.bounds == plan_part.colors.bounds, "input_part and plan_part colors must be equal")
 
     var p : iface.plan
-    -- T(x) is a cast from type T to a value x
     p.p = [fftw_c.fftw_plan](0)
 
     rescape
@@ -638,6 +574,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
   -- EXECUTE PLAN FUNCTIONS
 
+  -- Executes the FFT plan - GPU version. Called by execute_plan if necessary.
   local execute_plan_gpu
   if gpu_available then
     __demand(__cuda, __leaf)
@@ -737,7 +674,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     end
   end
 
-  --- Execute plan task. As execute_plan is a __demand(__inline) task, we provide make_plan_task as a wrapper for convenience, should the user wish to use a new task and not an inlined one.
+  --- Execute plan - task version. As execute_plan is a __demand(__inline) task, we provide make_plan_task as a wrapper for convenience, should the user wish to use a new task and not an inlined one.
   -- @param input Input to execute plan on.
   -- @param output Output of the executed plan.
   -- @param plan Plan object used to execute plan.
@@ -748,6 +685,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
   -- DESTROY PLAN FUNCTIONS
 
+  -- Destroys the FFT plan - GPU version. Called by destroy_plan if needed.
   local destroy_plan_gpu
   if gpu_available then
     __demand(__cuda, __leaf)
@@ -770,8 +708,6 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
   --- Destroy plan. This is the __inline version of the task should the user wish to use that.
   -- @param plan Plan to be destroyed.
-  -- @note To execute it in a separate task, it must be wrapped into a task.
-  -- @note That is what `destroy_plan_task` does.
   __demand(__inline)
   task iface.destroy_plan(plan : region(ispace(int1d), iface.plan))
   where reads writes(plan) do

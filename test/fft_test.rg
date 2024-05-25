@@ -37,11 +37,11 @@ end
 
 local print_region_1d_float = make_print_region_task(rawstring, region(ispace(int1d), float))
 local print_region_1d_double = make_print_region_task(rawstring, region(ispace(int1d), double))
---local print_region_1d_complex32 = make_print_region_task(rawstring, region(ispace(int1d), complex32))
---local print_region_1d_complex64 = make_print_region_task(rawstring, region(ispace(int1d), complex64))
---local print_region_2d_complex64 = make_print_region_task(rawstring, region(ispace(int2d), complex64))
+local print_region_1d_complex32 = make_print_region_task(rawstring, region(ispace(int1d), complex32))
+local print_region_1d_complex64 = make_print_region_task(rawstring, region(ispace(int1d), complex64))
+local print_region_2d_complex64 = make_print_region_task(rawstring, region(ispace(int2d), complex64))
 local print_region_3d_double = make_print_region_task(rawstring, region(ispace(int3d), double))
---local print_region_3d_complex64 = make_print_region_task(rawstring, region(ispace(int3d), complex64))
+local print_region_3d_complex64 = make_print_region_task(rawstring, region(ispace(int3d), complex64))
 
 __demand(__inline, __leaf)
 task print_region_1d_complex32(title : rawstring, input : region(ispace(int1d), complex32))
@@ -125,19 +125,8 @@ local compare_regions_1d_complex32 = make_compare_region_task(region(ispace(int1
 local compare_regions_1d_complex64 = make_compare_region_task(region(ispace(int1d), complex64), region(ispace(int1d), complex64))
 local compare_regions_2d_complex64 = make_compare_region_task(region(ispace(int2d), complex64), region(ispace(int2d), complex64))
 local compare_regions_3d_complex64 = make_compare_region_task(region(ispace(int3d), complex64), region(ispace(int3d), complex64))
+local compare_regions_4d_complex64 = make_compare_region_task(region(ispace(int4d), complex64), region(ispace(int4d), complex64))
 
-__demand(__inline, __leaf)
-task compare_regions_4d_complex64(output : region(ispace(int4d), complex64), expected : region(ispace(int4d), complex64))
-where reads (output, expected) do
-  var status = "PASSED"
-  for x in output do
-    if (output[x].real ~= expected[x].real) or (output[x].imag ~= expected[x].imag) then
-      status = "FAILED"
-      break
-    end
-  end
-  return status
-end
 
 -- INTERFACES
 

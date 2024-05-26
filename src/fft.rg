@@ -33,7 +33,8 @@ local cufft_assert
 if gpu_available then
   cufft_c = terralib.includec("cufftXt.h")
   regentlib.linklibrary("libcufft.so")
-  terra cufft_assert(result: cufft_c.cufftResult)
+
+  terra cufft_assert(result : cufft_c.cufftResult)
     var status = "UNKNOWN"
     if result == 0 then
       status = "CUFFT_SUCCESS"
@@ -122,7 +123,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   end
 
   iface.plan = iface_plan
-  iface.plan.__no_field_slicing = true --don't field slice this struct
+  iface.plan.__no_field_slicing = true -- Don't field slice this struct
 
   local function make_get_base(d, t)
     local rect_t = c["legion_rect_" .. d .. "d_t"]
@@ -136,9 +137,9 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       dtype_size : int
     }
 
-    local terra get_base(rect : rect_t, 
-                physical : c.legion_physical_region_t, 
-                field : c.legion_field_id_t)
+    local terra get_base(rect : rect_t,
+                         physical : c.legion_physical_region_t,
+                         field : c.legion_field_id_t)
 
       var subrect : rect_t
       var offsets : c.legion_byte_offset_t[d]
@@ -168,8 +169,8 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
   -- Define get_base functions for input, output, and plan regions
   local rect_plan_t, get_base_plan = make_get_base(1, iface.plan)
-  local rect_in_t, get_base_in = make_get_base(dim, dtype_in) 
-  local rect_out_t, get_base_out = make_get_base(dim, dtype_out) 
+  local rect_in_t, get_base_in = make_get_base(dim, dtype_in)
+  local rect_out_t, get_base_out = make_get_base(dim, dtype_out)
 
   -- Used to branch on CPU vs GPU execution inside tasks
   local terra get_executing_processor(runtime : c.legion_runtime_t)
@@ -196,9 +197,9 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   task iface.get_tunable(tunable_id : int)
     var f = c.legion_runtime_select_tunable_value(__runtime(), __context(), tunable_id, 0, 0)
     var n = __future(int64, f)
-    -- (Elliott): I thought Regent was supposed to copy on
-    -- assignment, but that seems not to happen here, so this would
-    -- result in a double destroy if we free here.
+    -- (Elliott): I thought Regent was supposed to copy on assignment, but that
+    -- seems not to happen here, so this would result in a double destroy if we
+    -- free here.
     -- c.legion_future_destroy(f)
     return n
   end
@@ -216,9 +217,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
    __demand(__inline)
   task iface.get_plan(plan : region(ispace(int1d), iface.plan), check : bool) : &iface.plan
   where reads(plan) do
-
-    var pr = __physical(plan)[0] --returns first physical region
-
+    var pr = __physical(plan)[0] -- Returns the first physical region
     regentlib.assert(c.legion_physical_region_get_memory_count(pr) == 1, "plan instance has more than one memory?")
 
     var mem_kind = c.legion_memory_kind(c.legion_physical_region_get_memory(pr, 0))
@@ -246,9 +245,9 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   local make_plan_gpu
   if gpu_available then
     __demand(__cuda, __leaf)
-    task make_plan_gpu(input : region(ispace(itype), dtype_in), 
-                       output : region(ispace(itype), dtype_out), 
-                       plan : region(ispace(int1d), iface.plan), 
+    task make_plan_gpu(input : region(ispace(itype), dtype_in),
+                       output : region(ispace(itype), dtype_out),
+                       plan : region(ispace(int1d), iface.plan),
                        address_space : c.legion_address_space_t)
     where reads writes(input, output, plan) do
 
@@ -266,7 +265,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0]).base
       var lo = input.ispace.bounds.lo:to_point()
       var hi = input.ispace.bounds.hi:to_point()
-      var n : int[dim] --n is an array of size dim with the size of each dimension in the entries
+      var n : int[dim] -- n is an array of size dim with the size of each dimension in the entries
       ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
 
       -- Create plans
@@ -289,7 +288,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   -- @note Calls `make_plan_gpu` if necessary.
    __demand(__inline)
   task iface.make_plan(input : region(ispace(itype), dtype_in),
-                       output : region(ispace(itype), dtype_out), 
+                       output : region(ispace(itype), dtype_out),
                        plan : region(ispace(int1d), iface.plan))
   where reads writes(input, output, plan) do
 
@@ -332,9 +331,9 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   local make_plan_gpu_batch
   if gpu_available then
     __demand(__cuda, __leaf)
-    task make_plan_gpu_batch(input : region(ispace(itype), dtype_in), 
-                             output : region(ispace(itype), dtype_out), 
-                             plan : region(ispace(int1d), iface.plan), 
+    task make_plan_gpu_batch(input : region(ispace(itype), dtype_in),
+                             output : region(ispace(itype), dtype_out),
+                             plan : region(ispace(int1d), iface.plan),
                              address_space : c.legion_address_space_t)
     where reads writes(input, output, plan) do
 
@@ -352,11 +351,12 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0]).base
       var lo = input.ispace.bounds.lo:to_point()
       var hi = input.ispace.bounds.hi:to_point()
-      
+
       var n : int[dim]
       ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
 
-      -- For batched transforms, we want to exclude the last dimension as that is the number of batches.
+      -- For batched transforms, we want to exclude the last dimension as that
+      -- is the number of batches.
       var n_batch : int[dim-1]
       for i = 0, dim do
         n_batch[i] = n[i]
@@ -369,12 +369,12 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       var offset_3 = offset_in[2].offset
       var i_dist : int
 
-      if dim == 2 then 
-        i_dist = offset_2/offset_1
+      if dim == 2 then
+        i_dist = offset_2 / offset_1
       elseif dim == 3 then
-        i_dist = offset_3/offset_1
+        i_dist = offset_3 / offset_1
       elseif dim == 4 then
-        i_dist = offset_in[3].offset/offset_1
+        i_dist = offset_in[3].offset / offset_1
       end
 
       var istride = offset_in[0].offset / dtype_size_in
@@ -397,13 +397,13 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   -- @param plan Plan region.
   -- @note Calls make_plan_gpu_batch if necessary.
   __demand(__inline)
-  task iface.make_plan_batch(input : region(ispace(itype), dtype_in), 
-                             output : region(ispace(itype), dtype_out), 
+  task iface.make_plan_batch(input : region(ispace(itype), dtype_in),
+                             output : region(ispace(itype), dtype_out),
                              plan : region(ispace(int1d), iface.plan))
-
   where reads writes(input, output, plan) do
 
     var p = iface.get_plan(plan, false)
+
     var address_space = c.legion_processor_address_space(get_executing_processor(__runtime()))
     regentlib.assert(input.ispace.bounds == output.ispace.bounds, "input and output regions must be identical in size")
 
@@ -422,7 +422,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     var offset_3 = offset_in[2].offset
 
     var i_dist : int
-    if dim == 2 then 
+    if dim == 2 then
       i_dist = offset_2/offset_1
     elseif dim == 3 then
       i_dist = offset_3/offset_1
@@ -440,7 +440,8 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     var n : int[dim]
     ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
 
-    --For batched transforms, we want to exclude the last dimension as that is the number of batches
+    -- For batched transforms, we want to exclude the last dimension as that is
+    -- the number of batches.
     var n_batch : int[dim-1]
     for i = 0, dim do
       n_batch[i] = n[i]
@@ -449,7 +450,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     if float_to_complex32_transform then
       p.float_p = fftw_c.fftwf_plan_dft_r2c(dim, &n[0], [&float](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_ESTIMATE)
     elseif complex32_to_complex32_transform then
-      p.float_p = fftw_c.fftwf_plan_dft(dim, &n[0], [&fftw_c.fftwf_complex](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_FORWARD, fftw_c.FFTW_ESTIMATE) 
+      p.float_p = fftw_c.fftwf_plan_dft(dim, &n[0], [&fftw_c.fftwf_complex](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_FORWARD, fftw_c.FFTW_ESTIMATE)
     elseif double_to_complex64_transform then
       p.p = fftw_c.fftw_plan_many_dft_r2c(dim-1, &n_batch[0], n[dim-1], [&double](input_base), &n_batch[0], istride, i_dist, [&fftw_c.fftw_complex](output_base), &n_batch[0], istride, i_dist, fftw_c.FFTW_ESTIMATE)
     elseif complex64_to_complex64_transform then
@@ -478,7 +479,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     iface.make_plan(input, output, plan)
   end
 
-  --- Make plan (distributed version). This is intended to be called from inside the user's main and avoids the need for the user to directly (say) index launch make_plan_task repeatedly
+  --- Make plan (distributed version). This is intended to be called from inside the user's main and avoids the need for the user to directly (say) index launch make_plan_task repeatedly.
   -- @param input Input region.
   -- @param input_part Input partition.
   -- @param output Output region.
@@ -486,11 +487,11 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   -- @param plan Plan region.
   -- @param plan_part Plan partition.
   __demand(__inline)
-  task iface.make_plan_distrib(input : region(ispace(itype), dtype_in), 
-                               input_part : partition(disjoint, input, ispace(int1d)), 
-                               output : region(ispace(itype), dtype_out), 
-                               output_part : partition(disjoint, output, ispace(int1d)), 
-                               plan : region(ispace(int1d), iface.plan), 
+  task iface.make_plan_distrib(input : region(ispace(itype), dtype_in),
+                               input_part : partition(disjoint, input, ispace(int1d)),
+                               output : region(ispace(itype), dtype_out),
+                               output_part : partition(disjoint, output, ispace(int1d)),
+                               plan : region(ispace(int1d), iface.plan),
                                plan_part : partition(disjoint, plan, ispace(int1d)))
   where reads writes(input, output, plan) do
 
@@ -659,7 +660,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   -- @param plan Plan to be destroyed.
   -- @param plan_part Plan partition to be destroyed in `plan`.
   __demand(__inline)
-  task iface.destroy_plan_distrib(plan : region(ispace(int1d), iface.plan), 
+  task iface.destroy_plan_distrib(plan : region(ispace(int1d), iface.plan),
                                   plan_part : partition(disjoint, plan, ispace(int1d)))
   where reads writes(plan) do
     for i in plan_part.colors do

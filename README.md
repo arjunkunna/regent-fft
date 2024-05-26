@@ -7,13 +7,13 @@ This is a fast fourier transform library built in Regent.
 
 ## Description
 
-At a high level, the library takes the input matrix for the DFT in the form of a
+At a high level, the library takes the input matrix for the Discrete Fourier Transform in the form of a
 region, and saves the output in an output region.
 
 The library currently supports transforms up to 3 dimensions, and can be
 configured to run on either a CPU or a GPU.
 
-The CPU mode is supported by [FFTW](https://www.fftw.org/), and the GPU mode by
+The CPU mode is powered by [FFTW](https://www.fftw.org/), and the GPU mode by
 [cuFFT](https://developer.nvidia.com/cufft).
 
 Both Complex-to-Complex and Real-To-Complex transformations are supported.
@@ -81,7 +81,7 @@ There are 4 possible modes:
 
 1. GPU vs. CPU
 2. Complex-to-Complex vs. Real-to-Complex
-3. Float vs. Double (Float only supported in GPU mode)
+3. Float vs. Double
 4. Batched mode (supported for all of the above)
 
 API usage generally follows the following steps.
@@ -89,9 +89,9 @@ API usage generally follows the following steps.
 First, an FFT interface has to be generated depending on the type of transform
 you hope to do. Then, we:
 
-- create a plan,
-- execute the said plan, and then
-- destroy the plan once we are done.
+- Create a plan,
+- Execute the said plan, and then
+- Destroy the plan once we are done.
 
 There are several sample code snippets in the `fft_test.rg` file for reference
 as well.
@@ -221,8 +221,7 @@ Please also refer to the `test_2d_complex64_to_complex64_batch_transform` and `t
 `fft_test.rg` for reference.
 
 Batched transforms are supported on both CPU and GPUs, for 1, 2 and 3 dimensions.
-Both real-to-complex and complex-to-complex transforms are supported
-(for both `complex32` and `complex64`).
+Both single-precision and double-precision real-to-complex and complex-to-complex transforms are supported
 
 #### 6. Distributed Mode
 

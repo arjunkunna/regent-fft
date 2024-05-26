@@ -12,7 +12,9 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
--- Regent FFT library
+--[[--
+Regent FFT library
+]]
 
 import "regent"
 
@@ -138,9 +140,8 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     }
 
     local terra get_base(rect : rect_t,
-                         physical : c.legion_physical_region_t,
-                         field : c.legion_field_id_t)
-
+                physical : c.legion_physical_region_t,
+                field : c.legion_field_id_t)
       var subrect : rect_t
       var offsets : c.legion_byte_offset_t[d]
       var accessor = get_accessor(physical, field)
@@ -153,8 +154,8 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
           end
         end
       end
-
       regentlib.assert(offsets[0].offset == terralib.sizeof(t), "stride does not match expected value")
+      
       destroy_accessor(accessor)
 
       var bp : base_pointer_t
@@ -197,9 +198,11 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   task iface.get_tunable(tunable_id : int)
     var f = c.legion_runtime_select_tunable_value(__runtime(), __context(), tunable_id, 0, 0)
     var n = __future(int64, f)
-    -- (Elliott): I thought Regent was supposed to copy on assignment, but that
-    -- seems not to happen here, so this would result in a double destroy if we
-    -- free here.
+
+    -- (Elliott): I thought Regent was supposed to copy on 
+    -- assignment, but that seems not to happen here, so this would
+    -- result in a double destroy if we free here.
+
     -- c.legion_future_destroy(f)
     return n
   end

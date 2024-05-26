@@ -15,6 +15,7 @@
 import "regent"
 
 local fft = require("fft")
+
 local cmapper = require("test_mapper")
 local format = require("std/format")
 
@@ -42,6 +43,7 @@ local print_region_1d_double = make_print_region_task(rawstring, region(ispace(i
 local print_region_3d_double = make_print_region_task(rawstring, region(ispace(int3d), double))
 --local print_region_3d_complex64 = make_print_region_task(rawstring, region(ispace(int3d), complex64))
 
+--Currently have these tasks in as complex still not supported in format.rg. Once that is merged, can remove these and uncomment out the tasks above.
 __demand(__inline, __leaf)
 task print_region_1d_complex32(title : rawstring, input : region(ispace(int1d), complex32))
 where reads (input) do

@@ -18,10 +18,7 @@ The CPU mode is supported by [FFTW](https://www.fftw.org/), and the GPU mode by
 
 Both Complex-to-Complex and Real-To-Complex transformations are supported.
 
-Both `complex64` and `complex32` types are supported in GPU mode. CPU mode is
-only able to support `complex64`. It is possible to use `complex32` in CPU mode
-but it requires some additional setup - please submit an issue if it might be of
-interest.
+Both single-precision and double-precision modes are supported - i.e. both `float` / `complex32` and `double` / `complex64` types.
 
 Batched transforms are also supported.
 
@@ -220,10 +217,9 @@ the number of batches, and use `make_plan_batch` instead of `make_plan`
 Please also refer to the `test_2d_complex64_to_complex64_batch_transform` and `test_2d_double_to_complex64_batch_transform` examples in
 `fft_test.rg` for reference.
 
-Batched transforms are supported on both CPU and GPUs, for 1 and 2 dimensions.
-For GPUs, both real-to-complex and complex-to-complex transforms are supported
-(for both `complex32` and `complex64`). For CPU, only `complex64`-to-`complex64`
-transforms are supported currently.
+Batched transforms are supported on both CPU and GPUs, for 1, 2 and 3 dimensions.
+Both real-to-complex and complex-to-complex transforms are supported
+(for both `complex32` and `complex64`).
 
 #### 6. Distributed Mode
 

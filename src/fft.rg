@@ -174,7 +174,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   local rect_out_t, get_base_out = make_get_base(dim, dtype_out)
 
   -- Used to branch on CPU vs GPU execution inside tasks
-  -- Hack: need to retrieve context without __context() to circumvent leaf checker here.
+  -- Hack: Need to retrieve context without __context() to circumvent leaf checker here.
   local terra get_executing_processor(runtime : c.legion_runtime_t)
     var ctx = c.legion_runtime_get_context()
     var result = c.legion_runtime_get_executing_processor(runtime, ctx)

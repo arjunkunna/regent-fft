@@ -7,8 +7,8 @@ This is a fast fourier transform library built in Regent.
 
 ## Description
 
-At a high level, the library takes the input matrix for the Discrete Fourier Transform in the form of a
-region, and saves the output in an output region.
+At a high level, the library takes the input matrix for the Discrete Fourier
+Transform in the form of a region, and saves the output in an output region.
 
 The library currently supports transforms up to 3 dimensions, and can be
 configured to run on either a CPU or a GPU.
@@ -18,7 +18,8 @@ The CPU mode is powered by [FFTW](https://www.fftw.org/), and the GPU mode by
 
 Both Complex-to-Complex and Real-To-Complex transformations are supported.
 
-Both single-precision and double-precision modes are supported - i.e. both `float` / `complex32` and `double` / `complex64` types.
+Both single-precision and double-precision modes are supported i.e. both `float`
+/ `complex32` and `double` / `complex64` types.
 
 Batched transforms are also supported.
 
@@ -29,7 +30,6 @@ Batched transforms are also supported.
 First, make sure you have Regent installed. (If you are using Sapling, please
 refer to the [Sapling guide](https://github.com/StanfordLegion/sapling-guide)).
 Be sure to install with `MAX_DIM=4` flag enabled.
-
 
 Note that you will want to load the following modules instead:
 
@@ -124,9 +124,11 @@ The input region should be initialized with index space of the form
 `ispace(<type>, N)`, where N is the size of the array, and `<type>` is either
 int1d/int2d/int3d depending on the dimension of the transform. The fieldspace of
 the region is the type supported by the transform - e.g, in a real-to-complex
-transform with double precision, the input array will have fieldspace `double` and output
-array will have fieldspace `complex64`. Larger fieldspaces that contain the appropriate types 
-can also be passed in via field polymorphism - [here](https://groups.google.com/g/legionusers/c/yvQa8BE6QD0/m/_1cL_w-aAAAJ) is an example.
+transform with double precision, the input array will have fieldspace `double`
+and output array will have fieldspace `complex64`. Larger fieldspaces that
+contain the appropriate types can also be passed in via field polymorphism -
+[here](https://groups.google.com/g/legionusers/c/yvQa8BE6QD0/m/_1cL_w-aAAAJ) is
+an example.
 
 For example, in a 1D double-to-complex64 transform of size 3, the input and
 output regions may be initialized as follows:
@@ -185,7 +187,9 @@ fft1d.destroy_plan(p)
 To illustrate how to perform a batched transform, let us use the example where
 you want to perform 7 batches of a 256 x 256 transform.
 
-Since the transform is a 2D one, the user creates a interface with `itype` of dimension N+1: in this case, an `int3d`. The last dimension is used to store the number of batches.
+Since the transform is a 2D one, the user creates a interface with `itype` of
+dimension N+1: in this case, an `int3d`. The last dimension is used to store the
+number of batches.
 
 ```lua
 local fft2d_batch_complex64_complex64 = fft.generate_fft_interface(int3d, complex64, complex64)
@@ -217,17 +221,21 @@ As you can see, the main points of differentiation from the regular transform
 API is that we input a region of dimension `n+1`, where the final dimension is
 the number of batches, and use `make_plan_batch` instead of `make_plan`
 
-Please also refer to the `test_2d_complex64_to_complex64_batch_transform` and `test_2d_double_to_complex64_batch_transform` examples in
-`fft_test.rg` for reference.
+Please also refer to the `test_2d_complex64_to_complex64_batch_transform` and
+`test_2d_double_to_complex64_batch_transform` examples in `fft_test.rg` for
+reference.
 
-Batched transforms are supported on both CPU and GPUs, for 1, 2 and 3 dimensions.
-Both single-precision and double-precision real-to-complex and complex-to-complex transforms are supported
+Batched transforms are supported on both CPU and GPUs, for 1, 2 and 3
+dimensions. Both single-precision and double-precision real-to-complex and
+complex-to-complex transforms are supported.
 
 #### 6. Distributed Mode
 
-The API also supportes a distributed mode, where every machine in a distributed job executes an independent FFT of the same size. 
+The API also supports a distributed mode, where every machine in a distributed
+job executes an independent FFT of the same size.
 
-To initialize in distributed mode, we might do the following: (in the example below, we have `n` 1-D `complex64` to `complex64` transforms of size 3).
+To initialize in distributed mode, we might do the following (we have `n` 1-D
+`complex64` to `complex64` transforms of size 3):
 
 ```lua
 var n = fft1d.get_num_nodes()
@@ -240,15 +248,24 @@ var s_part = partition(equal, s, ispace(int1d, n))
 fft1d.make_plan_distrib(r, r_part, s, s_part, p, p_part)
 ```
 
-Note the use of `get_num_nodes` to determine the size of the `p` region and partition. The task `make_plan_distrib` is a `__demand(__inline)` task that internally performs an index launch over the machine to initialize p.
+Note the use of `get_num_nodes` to determine the size of the `p` region and
+partition. The task `make_plan_distrib` is a `__demand(__inline)` task that
+internally performs an index launch over the machine to initialize `p`.
 
 > [!IMPORTANT]
-> Like `make_plan`, `make_plan_distrib` overwrites the input and output regions `r` and `s`.
+>
+> Like `make_plan`, `make_plan_distrib` overwrites the input and output regions
+> `r` and `s`.
 
 > [!IMPORTANT]
-> In order for the distributed API to work correctly, it is essential that each task in the index launch inside of `make_plan_distrib` is mapped onto a separate node. This ensures that when the region `p` is used later, there is a plan for every node in the machine.
+>
+> In order for the distributed API to work correctly, it is essential that each
+> task in the index launch inside of `make_plan_distrib` is mapped onto a
+> separate node. This ensures that when the region `p` is used later, there is a
+> plan for every node in the machine.
 
-If there are partitions `r_part` and `s_part` that are distributed around the machine, one might do the following to execute the plan:
+If there are partitions `r_part` and `s_part` that are distributed around the
+machine, one might do the following to execute the plan:
 
 ```lua
 __demand(__index_launch)
@@ -257,14 +274,23 @@ for i in r_part.colors do
 end
 ```
 
-Note:  `execute_plan` is a `__demand(__inline)` task (as described above). The task `execute_plan_task` is simply a wrapper around execute_plan for convenience, to avoid needing to define this explicitly.
+Note: `execute_plan` is a `__demand(__inline)` task (as described above). The
+task `execute_plan_task` is simply a wrapper around execute_plan for
+convenience, to avoid needing to define this explicitly.
 
 > [!IMPORTANT]
-> Because execute_plan is a `__demand(__inline)` task, it will never execute on the GPU (unless the parent task is running on the GPU). Therefore, in most cases it is necessary to use `execute_plan_task` if one wants to use the GPU.
+>
+> Because execute_plan is a `__demand(__inline)` task, it will never execute on
+> the GPU (unless the parent task is running on the GPU). Therefore, in most
+> cases it is necessary to use `execute_plan_task` if one wants to use the GPU.
 
 > [!IMPORTANT]
-> While `execute_plan_task` may be executed on the GPU, the contents of the `p` region must still be available on the CPU, because the plans must be used by the host-side code to launch the FFT kernels. Therefore, when `execute_plan_task` is mapped onto the GPU, it is very important to
-> map the `p` region into zero-copy memory.
+>
+> While `execute_plan_task` may be executed on the GPU, the contents of the `p`
+> region must still be available on the CPU, because the plans must be used by
+> the host-side code to launch the FFT kernels. Therefore, when
+> `execute_plan_task` is mapped onto the GPU, it is very important to map the
+> `p` region into zero-copy memory.
 
 Lastly, to destroy the plan:
 
@@ -272,14 +298,20 @@ Lastly, to destroy the plan:
 fft1d.destroy_plan_distrib(p, p_part)
 ```
 
-Note: This is a `__demand(__inline)` task, and `destroy_plan_distrib` will internally perform an index launch to destroy the plans on each node.
+> [!NOTE]
+>
+> This is a `__demand(__inline)` task, and `destroy_plan_distrib` will
+> internally perform an index launch to destroy the plans on each node.
 
 > [!IMPORTANT]
-> like `make_plan_distrib`, the index launch issued by `destroy_plan_distrib` must be mapped so that each point task runs on the node where the plan was originally created.
+>
+> like `make_plan_distrib`, the index launch issued by `destroy_plan_distrib`
+> must be mapped so that each point task runs on the node where the plan was
+> originally created.
 
 ## Future Developments
 
-Next items in the pipeline include distributed transforms across multiple nodes. 
+Next items in the pipeline include distributed transforms across multiple nodes.
 Please submit an issue if there are specific features that may be helpful.
 
 ## Authors

@@ -174,6 +174,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   local rect_out_t, get_base_out = make_get_base(dim, dtype_out)
 
   -- Used to branch on CPU vs GPU execution inside tasks
+  -- Hack: need to retrieve context without __context() to circumvent leaf checker here.
   local terra get_executing_processor(runtime : c.legion_runtime_t)
     var ctx = c.legion_runtime_get_context()
     var result = c.legion_runtime_get_executing_processor(runtime, ctx)
@@ -220,24 +221,22 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
    __demand(__inline)
   task iface.get_plan(plan : region(ispace(int1d), iface.plan), check : bool) : &iface.plan
   where reads(plan) do
+    -- Hack: Need to use raw access to circument CUDA checker here.
     var pr = __physical(plan)[0] -- Returns the first physical region
     regentlib.assert(c.legion_physical_region_get_memory_count(pr) == 1, "plan instance has more than one memory?")
-
     var mem_kind = c.legion_memory_kind(c.legion_physical_region_get_memory(pr, 0))
-    regentlib.assert(mem_kind == c.SYSTEM_MEM or mem_kind == c.REGDMA_MEM or mem_kind == c.Z_COPY_MEM, "plan instance must be stored in sysmem, regmem, or zero copy mem")
-
+    regentlib.assert(
+      mem_kind == c.SYSTEM_MEM or mem_kind == c.REGDMA_MEM or mem_kind == c.Z_COPY_MEM,
+      "plan instance must be stored in sysmem, regmem, or zero copy mem")
     var plan_base = get_base_plan(rect_plan_t(plan.ispace.bounds), __physical(plan)[0], __fields(plan)[0]).base
     var i = c.legion_processor_address_space(get_executing_processor(__runtime()))
-
     var p : &iface.plan
     var bounds = plan.ispace.bounds
-
     if bounds.hi - bounds.lo + 1 > int1d(1) then
       p = plan_base + i
     else
       p = plan_base
     end
-
     regentlib.assert(not check or p.address_space == i, "plans can only be used on the node where they are originally created")
     return p
   end
@@ -284,7 +283,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     end
   end
 
-  --- Creates the FFT plan. This is the __inline version of the task should the user wish to use that.
+  --- Creates the FFT plan. This is the __inline version of the task should the user wish to use that. Entry point into GPU functionality as well.
   -- @param input Input region.
   -- @param output Output region.
   -- @param plan Plan region.

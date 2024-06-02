@@ -23,7 +23,7 @@ export CUDA_PATH="/usr/local/cuda"
 export PATH="$CUDA_PATH/bin:$PATH"
 export LD_LIBRARY_PATH="$CUDA_PATH/lib:$CUDA_PATH/lib64:$LD_LIBRARY_PATH"
 
-git clone --depth 1 --branch stable https://github.com/StanfordLegion/legion.git
+git clone --depth 1 --branch master https://gitlab.com/StanfordLegion/legion.git
 CC=gcc CXX=g++ USE_GASNET=0 USE_CUDA=1 DEBUG=${DEBUG} MAX_DIM=4 ./legion/language/scripts/setup_env.py
 ./install.py
 ./legion/language/regent.py test/fft_test.rg -fgpu cuda -fgpu-offline 1 -fgpu-arch pascal

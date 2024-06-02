@@ -37,70 +37,12 @@ end
 
 local print_region_1d_float = make_print_region_task(rawstring, region(ispace(int1d), float))
 local print_region_1d_double = make_print_region_task(rawstring, region(ispace(int1d), double))
---local print_region_1d_complex32 = make_print_region_task(rawstring, region(ispace(int1d), complex32))
---local print_region_1d_complex64 = make_print_region_task(rawstring, region(ispace(int1d), complex64))
---local print_region_2d_complex64 = make_print_region_task(rawstring, region(ispace(int2d), complex64))
+local print_region_1d_complex32 = make_print_region_task(rawstring, region(ispace(int1d), complex32))
+local print_region_1d_complex64 = make_print_region_task(rawstring, region(ispace(int1d), complex64))
+local print_region_2d_complex64 = make_print_region_task(rawstring, region(ispace(int2d), complex64))
 local print_region_3d_double = make_print_region_task(rawstring, region(ispace(int3d), double))
---local print_region_3d_complex64 = make_print_region_task(rawstring, region(ispace(int3d), complex64))
-
---Currently have these tasks in as complex still not supported in format.rg. Once that is merged, can remove these and uncomment out the tasks above.
-__demand(__inline, __leaf)
-task print_region_1d_complex32(title : rawstring, input : region(ispace(int1d), complex32))
-where reads (input) do
-  format.println("{} = [", title)
-  for x in input do
-    var c = input[x]
-    format.println("{} + {}j,", c.real, c.imag)
-  end
-  format.println("]")
-end
-
-__demand(__inline, __leaf)
-task print_region_1d_complex64(title : rawstring, input : region(ispace(int1d), complex64))
-where reads (input) do
-  format.println("{} = [", title)
-  for x in input do
-    var c = input[x]
-    format.println("{} + {}j,", c.real, c.imag)
-  end
-  format.println("]")
-end
-
-__demand(__inline, __leaf)
-task print_region_2d_complex64(title : rawstring, input : region(ispace(int2d), complex64))
-where reads (input) do
-  format.println("{} = [", title)
-  format.println("Bounds = {}", input.bounds)
-  for x in input do
-    var c = input[x]
-    format.println("index {}: {} + {}j,", x, c.real, c.imag)
-  end
-  format.println("]")
-end
-
-__demand(__inline, __leaf)
-task print_region_3d_complex64(title : rawstring, input : region(ispace(int3d), complex64))
-where reads (input) do
-  format.println("{} = [", title)
-  format.println("Bounds = {}", input.bounds)
-  for x in input do
-    var c = input[x]
-    format.println("index {}: {} + {}j,", x, c.real, c.imag)
-  end
-  format.println("]")
-end
-
-__demand(__inline, __leaf)
-task print_region_4d_complex64(title : rawstring, input : region(ispace(int4d), complex64))
-where reads (input) do
-  format.println("{} = [", title)
-  format.println("Bounds = {}", input.bounds)
-  for x in input do
-    var c = input[x]
-    format.println("index {}: {} + {}j,", x, c.real, c.imag)
-  end
-  format.println("]")
-end
+local print_region_3d_complex64 = make_print_region_task(rawstring, region(ispace(int3d), complex64))
+local print_region_4d_complex64 = make_print_region_task(rawstring, region(ispace(int4d), complex64))
 
 -- COMPARISON FUNCTIONS
 

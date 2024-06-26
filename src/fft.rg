@@ -218,7 +218,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     return iface.get_tunable(DEFAULT_TUNABLE_LOCAL_GPUS)
   end
 
-   __demand(__inline)
+  __demand(__inline)
   task iface.get_plan(plan : region(ispace(int1d), iface.plan), check : bool) : &iface.plan
   where reads(plan) do
     -- Hack: Need to use raw access to circument CUDA checker here.

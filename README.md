@@ -98,7 +98,7 @@ as well.
 
 #### 1. Import `fft.rg`
 
-- The first argument is the dimension: `int1d`, `int2d`, or `int3d`.
+- The first argument is the index type of the input and output region: `int1d`, `int2d`, or `int3d`. This also tells the FFT interface what dimensionality to expect.
 - The second argument is the data type of the input: `complex64`, `complex32`,
   `float`, or `double`.
 - The third argument is the data type of the output: `complex64` or `complex32`.

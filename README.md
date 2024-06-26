@@ -306,7 +306,7 @@ fft1d.destroy_plan_distrib(p, p_part)
 
 > [!NOTE]
 >
-> This is a `__demand(__inline)` task, and `destroy_plan_distrib` will
+> As with `make_plan_distrib`, `destroy_plan_distrib` will
 > internally perform an index launch to destroy the plans on each node.
 
 > [!IMPORTANT]

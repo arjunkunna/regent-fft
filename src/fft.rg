@@ -481,7 +481,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     iface.make_plan(input, output, plan)
   end
 
-  --- Make plan (distributed version). This is intended to be called from inside the user's main and avoids the need for the user to directly (say) index launch make_plan_task repeatedly.
+  --- Create the plan. This version launches `make_plan_task` for each subregion in the provided partitions.
   -- @param input Input region.
   -- @param input_part Input partition.
   -- @param output Output region.

@@ -145,8 +145,11 @@ The plan region always takes the following form, with fieldspace `fft.plan` (see
 var p = region(ispace(int1d, 1), fft1d.plan)
 ```
 
-`make_plan` is a `__demand(__inline)` task. This means that if the user wants it
-to execute it in a separate task, they must wrap the task themselves.
+Every task in the Regent-FFT interface provides two versions: one which is
+`__demand(__inline)` and one which is just a regular task. Here, these are
+called `make_plan` (for inline) and `make_plan_task` (for a task). Users
+should pick the appropriate version depending on whether they want to launch a
+new task or not.
 
 > [!IMPORTANT]
 >

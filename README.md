@@ -28,7 +28,7 @@ Batched transforms are also supported.
 ### Install
 
 First, make sure you have Regent installed. (If you are using Sapling, please
-refer to the [Sapling guide](https://github.com/StanfordLegion/sapling-guide)).
+refer to the [Sapling guide](https://github.com/StanfordLegion/sapling-guide).)
 Be sure to install with `MAX_DIM=4` flag enabled.
 
 Note that you will want to load the following modules instead:

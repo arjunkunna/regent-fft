@@ -282,7 +282,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     end
   end
 
-  --- Creates the FFT plan. This is the __inline version of the task should the user wish to use that. Entry point into GPU functionality as well.
+  --- Creates the FFT plan. This __inline version will execute in the caller's context. Supports both CPU and GPU.
   -- @param input Input region.
   -- @param output Output region.
   -- @param plan Plan region.

@@ -155,7 +155,6 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
         end
       end
       regentlib.assert(offsets[0].offset == terralib.sizeof(t), "stride does not match expected value")
-      
       destroy_accessor(accessor)
 
       var bp : base_pointer_t

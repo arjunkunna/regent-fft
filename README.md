@@ -311,7 +311,7 @@ fft1d.destroy_plan_distrib(p, p_part)
 
 > [!IMPORTANT]
 >
-> like `make_plan_distrib`, the index launch issued by `destroy_plan_distrib`
+> Like `make_plan_distrib`, the index launch issued by `destroy_plan_distrib`
 > must be mapped so that each point task runs on the node where the plan was
 > originally created.
 

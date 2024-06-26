@@ -77,7 +77,7 @@ source env.sh
 
 ### Execute Program
 
-There are 4 possible modes:
+Regent-FFT supports four distinct axes of usage:
 
 1. GPU vs. CPU
 2. Complex-to-Complex vs. Real-to-Complex

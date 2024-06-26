@@ -96,7 +96,9 @@ you want to do. Then, we:
 There are several sample code snippets in the `fft_test.rg` file for reference
 as well.
 
-#### 1. Import `fft.rg`
+#### 1. Import `fft.rg` and Create the FFT Interface
+
+To generate a specific instance of the library, use `fft.generate_fft_interface(...)`.
 
 - The first argument is the index type of the input and output region: `int1d`, `int2d`, or `int3d`. This also tells the FFT interface what dimensionality to expect.
 - The second argument is the data type of the input: `complex64`, `complex32`,

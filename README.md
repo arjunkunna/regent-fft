@@ -1,7 +1,7 @@
 # Regent-FFT
 
 [![Regent-FFT
-Tests](https://github.com/StanfordLegion/regent-fft/actions/workflows/main.yml/badge.svg)](https://github.com/StanfordLegion/regent-fft/actions/workflows/master.yml)
+Tests](https://github.com/StanfordLegion/regent-fft/actions/workflows/main.yml/badge.svg)](https://github.com/StanfordLegion/regent-fft/actions)
 
 This is a fast fourier transform library built in Regent.
 

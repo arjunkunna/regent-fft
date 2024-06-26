@@ -50,7 +50,7 @@ local function make_compare_regions_task(output, expected)
   local o = regentlib.newsymbol(output, "o")
   local e = regentlib.newsymbol(expected, "e")
   local task compare_region_task([o], [e])
-  where reads (o, e) do
+  where reads(o, e) do
     var status = "PASSED"
     for x in o do
       if (o[x].real ~= e[x].real) or (o[x].imag ~= e[x].imag) then

@@ -286,7 +286,6 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   -- @param input Input region.
   -- @param output Output region.
   -- @param plan Plan region.
-  -- @note Calls `make_plan_gpu` if necessary.
    __demand(__inline)
   task iface.make_plan(input : region(ispace(itype), dtype_in),
                        output : region(ispace(itype), dtype_out),

@@ -276,7 +276,7 @@ machine, one might do the following to execute the plan:
 ```lua
 __demand(__index_launch)
 for i in r_part.colors do
-  fft1d.execute_plan_task(r_part[i], s_part[i], p)
+  fft1d.execute_plan_task(r_part[i], s_part[i], p_part[i])
 end
 ```
 

@@ -29,7 +29,7 @@ Batched transforms are also supported.
 
 First, make sure you have Regent installed. (If you are using Sapling, please
 refer to the [Sapling guide](https://github.com/StanfordLegion/sapling-guide).)
-Be sure to install with `MAX_DIM=4` flag enabled.
+Be sure to install with `MAX_DIM=4` (for Make) or `-DLegion_MAX_DIM=4` (for CMake).
 
 Note that you will want to load the following modules instead:
 

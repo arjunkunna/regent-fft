@@ -25,7 +25,7 @@ local function make_print_region_task(title, input)
   local t = regentlib.newsymbol(title, "t")
   local i = regentlib.newsymbol(input, "i")
   local task print_region_task([t], [i])
-  where reads (i) do
+  where reads(i) do
     format.println("{} = [", t)
     for x in i do
       format.println("{},", i[x])

@@ -470,7 +470,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     end
   end
 
-  --- Make plan: task version. As make_plan is a __demand(__inline) task, we provide make_plan_task as a wrapper for convenience, should the user wish to use a new task and not an inlined one.
+  --- Creates the plan. This version will launch a task.
   -- @param input Input region.
   -- @param output Output region.
   -- @param plan Plan region.

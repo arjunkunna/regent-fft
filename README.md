@@ -87,7 +87,7 @@ Regent-FFT supports four distinct axes of usage:
 API usage generally follows the following steps.
 
 First, an FFT interface has to be generated depending on the type of transform
-you hope to do. Then, we:
+you want to do. Then, we:
 
 - Create a plan,
 - Execute the said plan, and then

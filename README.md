@@ -82,7 +82,7 @@ Regent-FFT supports four distinct axes of usage:
 1. GPU vs. CPU
 2. Complex-to-Complex vs. Real-to-Complex
 3. Float vs. Double
-4. Batched mode (supported for all of the above)
+4. Single vs. Batched
 
 API usage generally follows the following steps.
 

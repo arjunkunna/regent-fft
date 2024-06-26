@@ -85,7 +85,7 @@ fftw_c.FFTW_ESTIMATE = (2 ^ 6)
 
 local fft = {}
 
---- Create the FFT interface.
+--- Create an FFT interface.
 -- @param itype Index type of transform (int2d/int2d/int3d/int4d).
 -- @param dtype_in Input data type of transform (float/double/complex32/complex64).
 -- @param dtype_out Output data type of transform (complex32/complex64).

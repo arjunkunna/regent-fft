@@ -255,7 +255,8 @@ fft1d.make_plan_distrib(r, r_part, s, s_part, p, p_part)
 
 Note the use of `get_num_nodes` to determine the size of the `p` region and
 partition. The task `make_plan_distrib` is a `__demand(__inline)` task that
-internally performs an index launch over the machine to initialize `p`.
+internally performs an index launch over the machine to initialize `p`
+(i.e., it will launch one `make_plan_task` per subregion of the inputs).
 
 > [!IMPORTANT]
 >

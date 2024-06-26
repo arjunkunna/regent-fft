@@ -7,8 +7,8 @@ This is a fast fourier transform (FFT) library built in Regent.
 
 ## Description
 
-At a high level, the library takes the input matrix for the Discrete Fourier
-Transform in the form of a region, and saves the output in an output region.
+Regent-FFT takes the input matrix for the discrete fourier
+transform (DFT) in a region, and saves the output in an output region.
 
 The library currently supports transforms up to 3 dimensions, and can be
 configured to run on either a CPU or a GPU.

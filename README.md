@@ -11,7 +11,7 @@ Regent-FFT takes the input matrix for the discrete fourier
 transform (DFT) in a region, and saves the output in an output region.
 
 The library currently supports transforms up to 3 dimensions, and can be
-configured to run on either a CPU or a GPU.
+configured to run on either CPUs or GPUs.
 
 The CPU mode is powered by [FFTW](https://www.fftw.org/), and the GPU mode by
 [cuFFT](https://developer.nvidia.com/cufft).

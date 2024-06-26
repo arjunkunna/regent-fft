@@ -222,7 +222,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   task iface.get_plan(plan : region(ispace(int1d), iface.plan), check : bool) : &iface.plan
   where reads(plan) do
     -- Hack: Need to use raw access to circument CUDA checker here.
-    var pr = __physical(plan)[0] -- Returns the first physical region
+    var pr = __physical(plan)[0]
     regentlib.assert(c.legion_physical_region_get_memory_count(pr) == 1, "plan instance has more than one memory?")
     var mem_kind = c.legion_memory_kind(c.legion_physical_region_get_memory(pr, 0))
     regentlib.assert(

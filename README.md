@@ -153,10 +153,6 @@ Next, we execute the plan. This takes the same 3 regions as mentioned above.
 fft1d.execute_plan_task(r, s, p)
 ```
 
-Note that `execute_plan` is a `__demand(__inline)` task (similar to `make_plan`
-above). The task `execute_plan_task` is simply a wrapper around `execute_plan`
-for convenience, to avoid needing to define this explicitly.
-
 > [!IMPORTANT]
 >
 > Because `execute_plan` is a `__demand(__inline)` task, it will never execute

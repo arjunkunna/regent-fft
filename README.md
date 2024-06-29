@@ -57,18 +57,6 @@ Then, run your `.rg` script, which can be set up using the instructions in the
 ../legion/language/regent.py test/fft_test.rg
 ```
 
-If operating in sapling, the following flow will likely be typical for
-subsequent usages:
-
-```shell
-ssh <username>@sapling.stanford.edu
-module load slurm mpi cmake cuda llvm
-srun -n 1 -N 1 -c 40 -p gpu --exclusive --pty bash --login
-<navigate to your .rg file>
-source env.sh
-../legion/language/regent.py test/fft_test.rg
-```
-
 ## Usage
 
 ### Execute Program

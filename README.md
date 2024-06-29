@@ -37,10 +37,6 @@ Note that on Sapling you will want to load the following modules:
 module load slurm mpi cmake cuda llvm
 ```
 
-Otherwise, refer to the Regent installation instructions
-[here](https://regent-lang.org/install/) or the Legion ones
-[here](https://legion.stanford.edu/starting/).
-
 Then, clone the repo:
 
 ```shell

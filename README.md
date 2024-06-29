@@ -3,7 +3,7 @@
 [![Regent-FFT
 Tests](https://github.com/StanfordLegion/regent-fft/actions/workflows/main.yml/badge.svg)](https://github.com/StanfordLegion/regent-fft/actions)
 
-This is a fast fourier transform (FFT) library built in Regent.
+This is a fast fourier transform (FFT) library built in [Regent](https://regent-lang.org/).
 
 ## Description
 
@@ -109,7 +109,7 @@ fft1d.make_plan(r, s, p)
 The input region should be initialized with index space of the form
 `ispace(<type>, N)`, where N is the size of the array, and `<type>` is either
 int1d/int2d/int3d depending on the dimension of the transform. The fieldspace of
-the region is the type supported by the transform - e.g, in a real-to-complex
+the region is the type supported by the transform - e.g, in a Real-to-Complex
 transform with double precision, the input array will have fieldspace `double`
 and output array will have fieldspace `complex64`. Larger fieldspaces that
 contain the appropriate types can also be passed in via field polymorphism -
@@ -214,10 +214,6 @@ Please also refer to the `test_2d_complex64_to_complex64_batch_transform` and
 `test_2d_double_to_complex64_batch_transform` examples in `fft_test.rg` for
 reference.
 
-Batched transforms are supported on both CPU and GPUs, for 1, 2 and 3
-dimensions. Both single-precision and double-precision real-to-complex and
-complex-to-complex transforms are supported.
-
 #### 6. Distributed Mode
 
 The API also supports a distributed mode, where every machine in a distributed
@@ -264,16 +260,6 @@ for i in r_part.colors do
 end
 ```
 
-Note: `execute_plan` is a `__demand(__inline)` task (as described above). The
-task `execute_plan_task` is simply a wrapper around execute_plan for
-convenience, to avoid needing to define this explicitly.
-
-> [!IMPORTANT]
->
-> Because execute_plan is a `__demand(__inline)` task, it will never execute on
-> the GPU (unless the parent task is running on the GPU). Therefore, in most
-> cases it is necessary to use `execute_plan_task` if one wants to use the GPU.
-
 > [!IMPORTANT]
 >
 > While `execute_plan_task` may be executed on the GPU, the contents of the `p`
@@ -310,10 +296,6 @@ Please submit an issue if there are specific features that may be helpful.
 - Arjun Kunna (<arjunkunna@gmail.com>)
 
 ## Additional Resources
-
-- For information on Regent, please refer to the [Regent
-  website](https://regent-lang.org/) or the [Legion
-  website](https://legion.stanford.edu/starting/).
 
 - For information on the FFT transform, please refer to these set of
   [notes](https://web.stanford.edu/class/cs168/l/l15.pdf) or this

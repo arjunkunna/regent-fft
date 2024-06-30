@@ -28,7 +28,6 @@ using namespace Legion::Mapping;
 
 static Logger log_fft_test_mapper("fft_test_mapper");
 
-// extend Default mapper
 class FFTTestMapper : public DefaultMapper {
 public:
   FFTTestMapper(MapperRuntime *rt, Machine machine, Processor local,
@@ -38,7 +37,6 @@ public:
       MemoryConstraint mc = MemoryConstraint()) override;
 };
 
-// Constructor
 FFTTestMapper::FFTTestMapper(MapperRuntime *rt, Machine machine, Processor local,
                              const char *mapper_name)
     : DefaultMapper(rt, machine, local, mapper_name) {}

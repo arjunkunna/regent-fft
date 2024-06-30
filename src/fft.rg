@@ -13,7 +13,7 @@
 -- limitations under the License.
 
 --[[--
-Regent FFT library
+Regent FFT library.
 ]]
 
 import "regent"
@@ -77,11 +77,19 @@ if gpu_available then
   end
 end
 
--- Define constants: get defines from fftw3.h
+-- Hack: get defines from fftw3.h
 fftw_c.FFTW_FORWARD = -1
 fftw_c.FFTW_BACKWARD = 1
+
 fftw_c.FFTW_MEASURE = 0
+fftw_c.FFTW_DESTROY_INPUT = (2 ^ 0)
+fftw_c.FFTW_UNALIGNED = (2 ^ 1)
+fftw_c.FFTW_CONSERVE_MEMORY = (2 ^ 2)
+fftw_c.FFTW_EXHAUSTIVE = (2 ^ 3) -- NO_EXHAUSTIVE is default
+fftw_c.FFTW_PRESERVE_INPUT = (2 ^ 4) -- cancels FFTW_DESTROY_INPUT
+fftw_c.FFTW_PATIENT = (2 ^ 5) -- IMPATIENT is default
 fftw_c.FFTW_ESTIMATE = (2 ^ 6)
+fftw_c.FFTW_WISDOM_ONLY = (2 ^ 21)
 
 local fft = {}
 
@@ -140,8 +148,8 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     }
 
     local terra get_base(rect : rect_t,
-                physical : c.legion_physical_region_t,
-                field : c.legion_field_id_t)
+                         physical : c.legion_physical_region_t,
+                         field : c.legion_field_id_t)
       var subrect : rect_t
       var offsets : c.legion_byte_offset_t[d]
       var accessor = get_accessor(physical, field)

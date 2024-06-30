@@ -279,6 +279,11 @@ fft1d_complex64_complex64.destroy_plan_distrib(p, p_part)
 
 > [!NOTE]
 >
+> Be sure to be consistent in using either `make_plan`, `execute_plan` and `destroy_plan`; or `make_plan_distrib`, `execute_plan_distrib` and `destroy_plan_distrib`
+> depending on which version of the API you are using, as the processor that runs `make_plan` should be the same processor used for `execute_plan` and `destroy_plan`.
+
+> [!NOTE]
+>
 > As with `make_plan_distrib`, `execute_plan_distrib` and `destroy_plan_distrib` will
 > internally perform an index launch to destroy the plans on each node.
 

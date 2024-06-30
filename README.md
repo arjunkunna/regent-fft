@@ -177,6 +177,8 @@ fft1d.destroy_plan(p)
 
 #### 5. Batched Transforms
 
+Batched transforms allow users to perform multiple transforms of the same size simultaneously, in a 'batch'.
+
 To illustrate how to perform a batched transform, let us use the example where
 you want to perform 7 batches of a 256 x 256 transform.
 
@@ -288,6 +290,17 @@ fft1d.destroy_plan_distrib(p, p_part)
 > Like `make_plan_distrib`, the index launch issued by `destroy_plan_distrib`
 > must be mapped so that each point task runs on the node where the plan was
 > originally created.
+
+## Caveats
+
+- FFTW's planner is *not thread-safe*, but this isn't currently protected by a lock in the Regent wrapper.
+
+- Optimization: Currently we take the approach of "always measure" with FFTW. This isn't even an option with cuFFT. Should this be exposed?
+
+- Missing features:
+      - strides
+      - backwards
+      - split
 
 ## Future Developments
 

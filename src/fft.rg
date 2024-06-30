@@ -262,12 +262,9 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
       var p = iface.get_plan(plan, true)
       var proc = get_executing_processor(__runtime())
-      if c.legion_processor_kind(proc) ~= c.TOC_PROC then
-        regentlib.assert(false, "make_plan_gpu must be executed on a GPU processor")
-      end
 
-      var i = c.legion_processor_address_space(proc)
-      regentlib.assert(address_space == i, "make_plan_gpu must be executed on a processor in the same address space")
+      regentlib.assert(c.legion_processor_kind(proc) == c.TOC_PROC, "make_plan_gpu must be executed on a GPU processor")
+      regentlib.assert(c.legion_processor_address_space(proc) == address_space, "make_plan_gpu must be executed on a processor in the same address space")
 
       -- Get input and output bases
       var input_base = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0]).base
@@ -346,14 +343,9 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     where reads writes(input, output, plan) do
 
       var p = iface.get_plan(plan, true)
-
       var proc = get_executing_processor(__runtime())
-      if c.legion_processor_kind(proc) ~= c.TOC_PROC then
-        regentlib.assert(false, "make_plan_gpu_batch must be executed on a GPU processor")
-      end
-
-      var i = c.legion_processor_address_space(proc)
-      regentlib.assert(address_space == i, "make_plan_gpu_batch must be executed on a processor in the same address space")
+      regentlib.assert(c.legion_processor_kind(proc) == c.TOC_PROC, "make_plan_gpu_batch must be executed on a GPU processor")
+      regentlib.assert(c.legion_processor_address_space(proc) == address_space, "make_plan_gpu_batch must be executed on a processor in the same address space")
 
       var input_base = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0]).base
       var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0]).base
@@ -542,12 +534,8 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
 
       var p = iface.get_plan(plan, true)
       var proc = get_executing_processor(__runtime())
-      if c.legion_processor_kind(proc) ~= c.TOC_PROC then
-        regentlib.assert(false, "make_plan_gpu must be executed on a GPU processor")
-      end
-
-      var i = c.legion_processor_address_space(proc)
-      regentlib.assert(address_space == i, "execute_plan_gpu must be executed on a processor in the same address space")
+      regentlib.assert(c.legion_processor_kind(proc) == c.TOC_PROC, "execute_plan_gpu must be executed on a GPU processor")
+      regentlib.assert(c.legion_processor_address_space(proc) == address_space, "execute_plan_gpu must be executed on a processor in the same address space")
 
       var input_base = get_base_in(rect_in_t(input.ispace.bounds), __physical(input)[0], __fields(input)[0]).base
       var output_base = get_base_out(rect_out_t(output.ispace.bounds), __physical(output)[0], __fields(output)[0]).base
@@ -627,8 +615,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       var proc = get_executing_processor(__runtime())
 
       if c.legion_processor_kind(proc) == c.TOC_PROC then
-        var i = c.legion_processor_address_space(proc)
-        regentlib.assert(address_space == i, "destory_plan_gpu must be executed on a processor in the same address space")
+        regentlib.assert(c.legion_processor_address_space(proc) == address_space, "destory_plan_gpu must be executed on a processor in the same address space")
         cufft_assert(cufft_c.cufftDestroy(p.cufft_p))
       end
     end

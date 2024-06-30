@@ -158,7 +158,7 @@ new task or not.
 Next, we execute the plan. This takes the same 3 regions as mentioned above.
 
 ```lua
-fft1d.execute_plan_task(r, s, p)
+fft1d.execute_plan(r, s, p)
 ```
 
 > [!IMPORTANT]

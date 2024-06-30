@@ -94,7 +94,7 @@ fftw_c.FFTW_WISDOM_ONLY = (2 ^ 21)
 local fft = {}
 
 --- Create an FFT interface.
--- @param itype_input Index type of transform (int2d/int2d/int3d).
+-- @param itype_input Index type of transform (int1d/int2d/int3d).
 -- @param dtype_in Input data type of transform (float/double/complex32/complex64).
 -- @param dtype_out Output data type of transform (complex32/complex64).
 -- @param batch_flag Flag for batch transform
@@ -109,11 +109,11 @@ function fft.generate_fft_interface(itype_input, dtype_in, dtype_out, batch_flag
   local itype = itype_input
   if batch_flag then
     dim = dim + 1
-    if itype == int1d then 
+    if itype == int1d then
       itype = int2d
-    elseif itype == int2d then 
+    elseif itype == int2d then
       itype = int3d
-    elseif itype == int3d then 
+    elseif itype == int3d then
       itype = int4d
     end
   end
@@ -220,7 +220,7 @@ function fft.generate_fft_interface(itype_input, dtype_in, dtype_out, batch_flag
     var f = c.legion_runtime_select_tunable_value(__runtime(), __context(), tunable_id, 0, 0)
     var n = __future(int64, f)
 
-    -- FIXME (Elliott): I thought Regent was supposed to copy on 
+    -- FIXME (Elliott): I thought Regent was supposed to copy on
     -- assignment, but that seems not to happen here, so this would
     -- result in a double destroy if we free here.
 

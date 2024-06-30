@@ -602,6 +602,27 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     iface.execute_plan(input, output, plan)
   end
 
+  --- Execute plan (distributed version). This is intended to be called from inside the user's main and avoids the need for the user to directly (say) index launch execute_plan_task repeatedly.
+  -- @param input Input region.
+  -- @param input_part Input partition.
+  -- @param output Output region.
+  -- @param output_part Output partition.
+  -- @param plan Plan region.
+  -- @param plan_part Plan partition.
+  __demand(__inline)
+  task iface.execute_plan_distrib(input : region(ispace(itype), dtype_in),
+                               input_part : partition(disjoint, input, ispace(int1d)),
+                               output : region(ispace(itype), dtype_out),
+                               output_part : partition(disjoint, output, ispace(int1d)),
+                               plan : region(ispace(int1d), iface.plan),
+                               plan_part : partition(disjoint, plan, ispace(int1d)))
+  where reads writes(input, output, plan) do
+    __demand(__index_launch)
+    for i in input_part.colors do
+      iface.execute_plan_task(input_part[i], output_part[i], plan_part[i])
+    end
+  end
+
   -- DESTROY PLAN FUNCTIONS
 
   -- Destroys the FFT plan - GPU version. Called by destroy_plan if needed.
@@ -658,6 +679,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
   task iface.destroy_plan_distrib(plan : region(ispace(int1d), iface.plan),
                                   plan_part : partition(disjoint, plan, ispace(int1d)))
   where reads writes(plan) do
+    __demand(__index_launch)
     for i in plan_part.colors do
       iface.destroy_plan_task(plan_part[i])
     end

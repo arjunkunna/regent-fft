@@ -233,18 +233,19 @@ reference.
 The API also supports a distributed mode, where every machine in a distributed
 job executes an independent FFT.
 
-To initialize in distributed mode, we might do the following (we have `n` 1-D
-`complex64` to `complex64` transforms of size 3):
+To initialize in distributed mode, we might do the following (where we have `n` 1-D
+`complex64` to `complex64` transforms of size `m`, and partitions `r_part` and `s_part` that are distributed around the
+machine):
 
 ```lua
 var n = fft1d.get_num_nodes()
 var p = region(ispace(int1d, n), fft1d.plan)
 var p_part = partition(equal, p, ispace(int1d, n))
-var r = region(ispace(int1d, 3*n), complex64)
+var r = region(ispace(int1d, m*n), complex64)
 var r_part = partition(equal, r, ispace(int1d, n))
-var s = region(ispace(int1d, 3*n), complex64)
+var s = region(ispace(int1d, m*n), complex64)
 var s_part = partition(equal, s, ispace(int1d, n))
-fft1d.make_plan_distrib(r, r_part, s, s_part, p, p_part)
+fft1d_complex64_complex64.make_plan_distrib(r, r_part, s, s_part, p, p_part)
 ```
 
 Note the use of `get_num_nodes` to determine the size of the `p` region and
@@ -264,30 +265,26 @@ internally performs an index launch over the machine to initialize `p`
 > separate node. This ensures that when the region `p` is used later, there is a
 > plan for every node in the machine.
 
-If there are partitions `r_part` and `s_part` that are distributed around the
-machine, one might do the following to execute the plan:
+Then, we execute the plan:
 
 ```lua
-__demand(__index_launch)
-for i in r_part.colors do
-  fft1d.execute_plan_task(r_part[i], s_part[i], p_part[i])
-end
+fft1d_complex64_complex64.execute_plan_distrib(r, r_part, s, s_part, p, p_part)
 ```
 
 Lastly, to destroy the plan:
 
 ```lua
-fft1d.destroy_plan_distrib(p, p_part)
+fft1d_complex64_complex64.destroy_plan_distrib(p, p_part)
 ```
 
 > [!NOTE]
 >
-> As with `make_plan_distrib`, `destroy_plan_distrib` will
+> As with `make_plan_distrib`, `execute_plan_distrib` and `destroy_plan_distrib` will
 > internally perform an index launch to destroy the plans on each node.
 
 > [!IMPORTANT]
 >
-> Like `make_plan_distrib`, the index launch issued by `destroy_plan_distrib`
+> Like `make_plan_distrib`, the index launches issued by `execute_plan_distrib` and `destroy_plan_distrib`
 > must be mapped so that each point task runs on the node where the plan was
 > originally created.
 

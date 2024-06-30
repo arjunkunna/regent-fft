@@ -111,7 +111,7 @@ task test_1d_float_to_complex32_transform()
 
   var status = compare_regions_1d_complex32(s, e)
   format.println("<< test_1d_float_to_complex32_transform [PASSED? {}]", status)
-  regentlib.assert(status, "test_1d_float_to_complex32_transform should pass")
+  regentlib.assert(status, "test_1d_float_to_complex32_transform failed")
 end
 
 __demand(__inline)
@@ -143,7 +143,7 @@ task test_1d_complex32_to_complex32_transform()
 
   var status = compare_regions_1d_complex32(s, e)
   format.println("<< test_1d_complex32_to_complex32_transform [PASSED? {}]", status)
-  regentlib.assert(status, "test_1d_complex32_to_complex32_transform should pass")
+  regentlib.assert(status, "test_1d_complex32_to_complex32_transform failed")
 end
 
 __demand(__inline)
@@ -172,7 +172,7 @@ task test_1d_double_to_complex64_transform()
 
   var status = compare_regions_1d_complex64(s, e)
   format.println("<< test_1d_double_to_complex64_transform [PASSED? {}]", status)
-  regentlib.assert(status, "test_1d_double_to_complex64_transform should pass")
+  regentlib.assert(status, "test_1d_double_to_complex64_transform failed")
 end
 
 __demand(__inline)
@@ -205,7 +205,7 @@ task test_1d_complex64_to_complex64_transform()
 
   var status = compare_regions_1d_complex64(s, e)
   format.println("<< test_1d_complex64_to_complex64_transform [PASSED? {}]", status)
-  regentlib.assert(status, "test_1d_complex64_to_complex64_transform should pass")
+  regentlib.assert(status, "test_1d_complex64_to_complex64_transform failed")
 end
 
 __demand(__inline)
@@ -250,7 +250,7 @@ task test_1d_complex64_to_complex64_distrib_transform()
 
   var status = compare_regions_1d_complex64(s, e)
   format.println("<< test_1d_complex64_to_complex64_distrib_transform [PASSED? {}]", status)
-  regentlib.assert(status, "test_1d_complex64_to_complex64_distrib_transform should pass")
+  regentlib.assert(status, "test_1d_complex64_to_complex64_distrib_transform failed")
 end
 
 __demand(__inline)
@@ -283,7 +283,7 @@ task test_2d_complex64_to_complex64_transform()
 
   var status = compare_regions_2d_complex64(s, e)
   format.println("<< test_2d_complex64_to_complex64_transform [PASSED? {}]", status)
-  regentlib.assert(status, "test_2d_complex64_to_complex64_transform should pass")
+  regentlib.assert(status, "test_2d_complex64_to_complex64_transform failed")
 end
 
 __demand(__inline)
@@ -317,7 +317,7 @@ task test_3d_complex64_to_complex64_transform()
 
   var status = compare_regions_3d_complex64(s, e)
   format.println("<< test_3d_complex64_to_complex64_transform [PASSED? {}]", status)
-  regentlib.assert(status, "test_3d_complex64_to_complex64_transform should pass")
+  regentlib.assert(status, "test_3d_complex64_to_complex64_transform failed")
 end
 
 __demand(__inline)
@@ -350,7 +350,7 @@ task test_2d_double_to_complex64_batch_transform()
 
   var status = compare_regions_3d_complex64(s, e)
   format.println("<< test_2d_double_to_complex64_batch_transform [PASSED? {}]", status)
-  regentlib.assert(status, "test_2d_double_to_complex64_batch_transform should pass")
+  regentlib.assert(status, "test_2d_double_to_complex64_batch_transform failed")
 end
 
 __demand(__inline)
@@ -385,7 +385,7 @@ task test_2d_complex64_to_complex64_batch_transform()
 
   var status = compare_regions_3d_complex64(s, e)
   format.println("<< test_2d_complex64_to_complex64_batch_transform [PASSED? {}]", status)
-  regentlib.assert(status, "test_2d_complex64_to_complex64_batch_transform should pass")
+  regentlib.assert(status, "test_2d_complex64_to_complex64_batch_transform failed")
 end
 
 __demand(__inline)
@@ -420,7 +420,7 @@ task test_3d_complex64_to_complex64_batch_transform()
 
   var status = compare_regions_4d_complex64(s, e)
   format.println("<< test_3d_complex64_to_complex64_batch_transform [PASSED? {}]", status)
-  regentlib.assert(status, "test_3d_complex64_to_complex64_batch_transform should pass")
+  regentlib.assert(status, "test_3d_complex64_to_complex64_batch_transform failed")
 end
 
 task main()

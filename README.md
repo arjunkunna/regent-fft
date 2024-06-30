@@ -96,7 +96,9 @@ local fft1d = fft.generate_fft_interface(int1d, complex64, complex64)
 
 #### 2. Make Plan
 
-`make_plan` takes three arguments:
+Like many FFT libraries, Regent FFT requires the use of plans. Plans are specific to the sizes of the input and output regions being used, as well as the machine node the plan is initialized on. Currently the enforcement of these assumptions is the responsibility of the user.
+
+The first step is to call `make_plan`, which takes three arguments:
 
 1. `r`: input region
 2. `s`: output region
@@ -124,8 +126,14 @@ var r = region(ispace(int1d, 3), double)
 var s = region(ispace(int1d, 3), complex64)
 ```
 
-The plan region always takes the following form, with fieldspace `fft.plan` (see
-`fft.rg` for description of plan fieldspace):
+The way that a plan is initialized depends on the usage mode. In
+general, plans are stored in a region which is managed by the
+user. The plan region may be a subregion and need not start at zero,
+but it must contain at least a number of elements depending on the
+mode: 1 in non-distributed mode, `N` in distributed mode where `N` is
+the number of nodes.
+
+In non-distributed mode, the plan region can be initialized as follows:
 
 ```lua
 var p = region(ispace(int1d, 1), fft1d.plan)
@@ -198,7 +206,7 @@ fft2d_batch_complex64_complex64.make_plan_batch(r, s, p)
 Then, we execute and destroy as in the regular case.
 
 ```lua
-fft2d_batch_complex64_complex64.execute_plan_task(r, s, p)
+fft2d_batch_complex64_complex64.execute_plan(r, s, p)
 fft2d_batch_complex64_complex64.destroy_plan(p)
 ```
 
@@ -213,7 +221,7 @@ reference.
 #### 6. Distributed Mode
 
 The API also supports a distributed mode, where every machine in a distributed
-job executes an independent FFT of the same size.
+job executes an independent FFT.
 
 To initialize in distributed mode, we might do the following (we have `n` 1-D
 `complex64` to `complex64` transforms of size 3):

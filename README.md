@@ -167,6 +167,14 @@ fft1d.execute_plan_task(r, s, p)
 > on the GPU (unless the parent task is running on the GPU). Therefore, in most
 > cases, it is necessary to use `execute_plan_task` if one wants to use the GPU.
 
+> [!IMPORTANT]
+>
+> While `execute_plan_task` may be executed on the GPU, the contents of the `p`
+> region must still be available on the CPU, because the plans must be used by
+> the host-side code to launch the FFT kernels. Therefore, when
+> `execute_plan_task` is mapped onto the GPU, it is very important to map the
+> `p` region into zero-copy memory.
+
 #### 4. Destroy Plan
 
 When a plan is no longer needed, it can be destroyed:
@@ -199,7 +207,7 @@ var s = region(ispace(int3d, {256, 256, 7}), complex64)
 var p = region(ispace(int1d, 1), fft3d_batch_real.plan)
 ```
 
-The key difference is that we call `make_plan_batch` instead of `make_plan`
+The key difference is that we call `make_plan_batch` instead of `make_plan`.
 
 ```lua
 fft2d_batch_complex64_complex64.make_plan_batch(r, s, p)
@@ -214,7 +222,7 @@ fft2d_batch_complex64_complex64.destroy_plan(p)
 
 As you can see, the main points of differentiation from the regular transform
 API is that we input a region of dimension `n+1`, where the final dimension is
-the number of batches, and use `make_plan_batch` instead of `make_plan`
+the number of batches, and use `make_plan_batch` instead of `make_plan`.
 
 Please also refer to the `test_2d_complex64_to_complex64_batch_transform` and
 `test_2d_double_to_complex64_batch_transform` examples in `fft_test.rg` for
@@ -265,14 +273,6 @@ for i in r_part.colors do
   fft1d.execute_plan_task(r_part[i], s_part[i], p_part[i])
 end
 ```
-
-> [!IMPORTANT]
->
-> While `execute_plan_task` may be executed on the GPU, the contents of the `p`
-> region must still be available on the CPU, because the plans must be used by
-> the host-side code to launch the FFT kernels. Therefore, when
-> `execute_plan_task` is mapped onto the GPU, it is very important to map the
-> `p` region into zero-copy memory.
 
 Lastly, to destroy the plan:
 

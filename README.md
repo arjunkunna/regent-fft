@@ -298,9 +298,9 @@ fft1d.destroy_plan_distrib(p, p_part)
 - Optimization: Currently we take the approach of "always measure" with FFTW. This isn't even an option with cuFFT. Should this be exposed?
 
 - Missing features:
-      * Strides
-      * Backwards
-      * Split
+  - Strides
+  - Backwards
+  - Split
 
 ## Future Developments
 

@@ -302,11 +302,6 @@ fft1d.destroy_plan_distrib(p, p_part)
   - Backwards
   - Split
 
-## Future Developments
-
-Next items in the pipeline include distributed transforms across multiple nodes.
-Please submit an issue if there are specific features that may be helpful.
-
 ## Authors
 
 - Elliott Slaughter (<slaughter@cs.stanford.edu>)

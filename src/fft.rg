@@ -207,7 +207,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     var f = c.legion_runtime_select_tunable_value(__runtime(), __context(), tunable_id, 0, 0)
     var n = __future(int64, f)
 
-    -- (Elliott): I thought Regent was supposed to copy on 
+    -- FIXME (Elliott): I thought Regent was supposed to copy on 
     -- assignment, but that seems not to happen here, so this would
     -- result in a double destroy if we free here.
 
@@ -275,7 +275,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       var lo = input.ispace.bounds.lo:to_point()
       var hi = input.ispace.bounds.hi:to_point()
       var n : int[dim] -- n is an array of size dim with the size of each dimension in the entries
-      ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
+      [data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
 
       -- Create plans
       if float_to_complex32_transform then
@@ -310,7 +310,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     var hi = input.ispace.bounds.hi:to_point()
 
     var n : int[dim]
-    ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
+    [data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
 
     if float_to_complex32_transform then
       p.float_p = fftw_c.fftwf_plan_dft_r2c(dim, &n[0], [&float](input_base), [&fftw_c.fftwf_complex](output_base), fftw_c.FFTW_ESTIMATE)
@@ -361,7 +361,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
       var hi = input.ispace.bounds.hi:to_point()
 
       var n : int[dim]
-      ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
+      [data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
 
       -- For batched transforms, we want to exclude the last dimension as that
       -- is the number of batches.
@@ -446,7 +446,7 @@ function fft.generate_fft_interface(itype, dtype_in, dtype_out)
     p.address_space = address_space
 
     var n : int[dim]
-    ;[data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
+    [data.range(dim):map(function(i) return rquote n[i] = hi.x[i] - lo.x[i] + 1 end end)]
 
     -- For batched transforms, we want to exclude the last dimension as that is
     -- the number of batches.

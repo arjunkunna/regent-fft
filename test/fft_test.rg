@@ -51,10 +51,10 @@ local function make_compare_regions_task(output, expected)
   local e = regentlib.newsymbol(expected, "e")
   local task compare_region_task([o], [e])
   where reads(o, e) do
-    var status = "PASSED"
+    var status = true
     for x in o do
       if (o[x].real ~= e[x].real) or (o[x].imag ~= e[x].imag) then
-        status = "FAILED"
+        status = false
         break
       end
     end
@@ -110,7 +110,8 @@ task test_1d_float_to_complex32_transform()
   print_region_1d_complex32("Expected", e)
 
   var status = compare_regions_1d_complex32(s, e)
-  format.println("<< test_1d_float_to_complex32_transform [{}]", status)
+  format.println("<< test_1d_float_to_complex32_transform [PASSED? {}]", status)
+  regentlib.assert(status, "test_1d_float_to_complex32_transform should pass")
 end
 
 __demand(__inline)
@@ -141,7 +142,8 @@ task test_1d_complex32_to_complex32_transform()
   print_region_1d_complex32("Expected", e)
 
   var status = compare_regions_1d_complex32(s, e)
-  format.println("<< test_1d_complex32_to_complex32_transform [{}]", status)
+  format.println("<< test_1d_complex32_to_complex32_transform [PASSED? {}]", status)
+  regentlib.assert(status, "test_1d_complex32_to_complex32_transform should pass")
 end
 
 __demand(__inline)
@@ -169,7 +171,8 @@ task test_1d_double_to_complex64_transform()
   print_region_1d_complex64("Expected", e)
 
   var status = compare_regions_1d_complex64(s, e)
-  format.println("<< test_1d_double_to_complex64_transform [{}]", status)
+  format.println("<< test_1d_double_to_complex64_transform [PASSED? {}]", status)
+  regentlib.assert(status, "test_1d_double_to_complex64_transform should pass")
 end
 
 __demand(__inline)
@@ -201,7 +204,8 @@ task test_1d_complex64_to_complex64_transform()
   print_region_1d_complex64("Expected", e)
 
   var status = compare_regions_1d_complex64(s, e)
-  format.println("<< test_1d_complex64_to_complex64_transform [{}]", status)
+  format.println("<< test_1d_complex64_to_complex64_transform [PASSED? {}]", status)
+  regentlib.assert(status, "test_1d_complex64_to_complex64_transform should pass")
 end
 
 __demand(__inline)
@@ -245,7 +249,8 @@ task test_1d_complex64_to_complex64_distrib_transform()
   print_region_1d_complex64("Expected", e)
 
   var status = compare_regions_1d_complex64(s, e)
-  format.println("<< test_1d_complex64_to_complex64_distrib_transform [{}]", status)
+  format.println("<< test_1d_complex64_to_complex64_distrib_transform [PASSED? {}]", status)
+  regentlib.assert(status, "test_1d_complex64_to_complex64_distrib_transform should pass")
 end
 
 __demand(__inline)
@@ -277,7 +282,8 @@ task test_2d_complex64_to_complex64_transform()
   print_region_2d_complex64("Expected", e)
 
   var status = compare_regions_2d_complex64(s, e)
-  format.println("<< test_2d_complex64_to_complex64_transform [{}]", status)
+  format.println("<< test_2d_complex64_to_complex64_transform [PASSED? {}]", status)
+  regentlib.assert(status, "test_2d_complex64_to_complex64_transform should pass")
 end
 
 __demand(__inline)
@@ -310,7 +316,8 @@ task test_3d_complex64_to_complex64_transform()
   print_region_3d_complex64("Expected", e)
 
   var status = compare_regions_3d_complex64(s, e)
-  format.println("<< test_3d_complex64_to_complex64_transform [{}]", status)
+  format.println("<< test_3d_complex64_to_complex64_transform [PASSED? {}]", status)
+  regentlib.assert(status, "test_3d_complex64_to_complex64_transform should pass")
 end
 
 __demand(__inline)
@@ -342,7 +349,8 @@ task test_2d_double_to_complex64_batch_transform()
   print_region_3d_complex64("Expected", e)
 
   var status = compare_regions_3d_complex64(s, e)
-  format.println("<< test_2d_double_to_complex64_batch_transform [{}]", status)
+  format.println("<< test_2d_double_to_complex64_batch_transform [PASSED? {}]", status)
+  regentlib.assert(status, "test_2d_double_to_complex64_batch_transform should pass")
 end
 
 __demand(__inline)
@@ -376,7 +384,8 @@ task test_2d_complex64_to_complex64_batch_transform()
   print_region_3d_complex64("Expected", e)
 
   var status = compare_regions_3d_complex64(s, e)
-  format.println("<< test_2d_complex64_to_complex64_batch_transform [{}]", status)
+  format.println("<< test_2d_complex64_to_complex64_batch_transform [PASSED? {}]", status)
+  regentlib.assert(status, "test_2d_complex64_to_complex64_batch_transform should pass")
 end
 
 __demand(__inline)
@@ -410,7 +419,8 @@ task test_3d_complex64_to_complex64_batch_transform()
   print_region_4d_complex64("Expected", e)
 
   var status = compare_regions_4d_complex64(s, e)
-  format.println("<< test_3d_complex64_to_complex64_batch_transform [{}]", status)
+  format.println("<< test_3d_complex64_to_complex64_batch_transform [PASSED? {}]", status)
+  regentlib.assert(status, "test_3d_complex64_to_complex64_batch_transform should pass")
 end
 
 task main()

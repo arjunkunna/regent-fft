@@ -22,7 +22,7 @@ jobs:
         run: |
           clang-format -i test/*.{h,cc}
           git status
-          git diff
+          git diff --exit-code
 
       - name: Run tests
         env:

@@ -190,15 +190,14 @@ Batched transforms allow users to perform multiple transforms of the same size s
 To illustrate how to perform a batched transform, let us use the example where
 you want to perform 7 batches of a 256 x 256 transform.
 
-Since the transform is a 2D one, the user creates a interface with `itype` of
-dimension N+1: in this case, an `int3d`. The last dimension is used to store the
-number of batches.
+Since the transform is a 2D one, the user creates a interface with `itype` of the same
+dimension: in this case, an `int2d`. 
 
 ```lua
-local fft2d_batch_complex64_complex64 = fft.generate_fft_interface(int3d, complex64, complex64)
+local fft2d_batch_complex64_complex64 = fft.generate_fft_interface(int2d, complex64, complex64)
 ```
 
-The input and output regions should be 256 x 256 x 7 arrays: i.e., the last
+The input and output regions should be of dimension 'N+1', in this case 256 x 256 x 7. The size of the last
 dimension is the number of batches. The plan region remains the same as before:
 
 ```lua
@@ -220,13 +219,9 @@ fft2d_batch_complex64_complex64.execute_plan(r, s, p)
 fft2d_batch_complex64_complex64.destroy_plan(p)
 ```
 
-As you can see, the main points of differentiation from the regular transform
-API is that we input a region of dimension `n+1`, where the final dimension is
-the number of batches, and use `make_plan_batch` instead of `make_plan`.
-
 Please also refer to the `test_2d_complex64_to_complex64_batch_transform` and
-`test_2d_double_to_complex64_batch_transform` examples in `fft_test.rg` for
-reference.
+`test_2d_double_to_complex64_batch_transform` examples in `fft_test.rg` for further
+examples.
 
 #### 6. Distributed Mode
 

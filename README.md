@@ -88,10 +88,11 @@ To generate a specific instance of the library, use `fft.generate_fft_interface(
 - The second argument is the data type of the input: `complex64`, `complex32`,
   `float`, or `double`.
 - The third argument is the data type of the output: `complex64` or `complex32`.
+- The fourth argument is a flag for batched transforms: `false` in regular mode, and `true` in batched mode.
 
 ```lua
 local fft = require("fft")
-local fft1d = fft.generate_fft_interface(int1d, complex64, complex64)
+local fft1d = fft.generate_fft_interface(int1d, complex64, complex64, false)
 ```
 
 #### 2. Make Plan
@@ -191,10 +192,10 @@ To illustrate how to perform a batched transform, let us use the example where
 you want to perform 7 batches of a 256 x 256 transform.
 
 Since the transform is a 2D one, the user creates a interface with `itype` of the same
-dimension: in this case, an `int2d`. 
+dimension: in this case, an `int2d`. Be sure to pass in `true` as the fourth argument to indicate we are performing a batched transform.
 
 ```lua
-local fft2d_batch_complex64_complex64 = fft.generate_fft_interface(int2d, complex64, complex64)
+local fft2d_batch_complex64_complex64 = fft.generate_fft_interface(int2d, complex64, complex64, true)
 ```
 
 The input and output regions should be of dimension 'N+1', in this case 256 x 256 x 7. The size of the last

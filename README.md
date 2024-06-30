@@ -204,7 +204,7 @@ dimension is the number of batches. The plan region remains the same as before:
 ```lua
 var r = region(ispace(int3d, {256, 256, 7}), complex64)
 var s = region(ispace(int3d, {256, 256, 7}), complex64)
-var p = region(ispace(int1d, 1), fft3d_batch_real.plan)
+var p = region(ispace(int1d, 1), fft2d_batch_double_complex64.plan)
 ```
 
 The key difference is that we call `make_plan_batch` instead of `make_plan`.

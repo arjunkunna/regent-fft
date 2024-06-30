@@ -94,16 +94,29 @@ fftw_c.FFTW_WISDOM_ONLY = (2 ^ 21)
 local fft = {}
 
 --- Create an FFT interface.
--- @param itype Index type of transform (int2d/int2d/int3d/int4d).
+-- @param itype_input Index type of transform (int2d/int2d/int3d).
 -- @param dtype_in Input data type of transform (float/double/complex32/complex64).
 -- @param dtype_out Output data type of transform (complex32/complex64).
-function fft.generate_fft_interface(itype, dtype_in, dtype_out)
-  assert(regentlib.is_index_type(itype), "requires an index type as the first argument")
-  local dim = itype.dim
+-- @param batch_flag Flag for batch transform
+function fft.generate_fft_interface(itype_input, dtype_in, dtype_out, batch_flag)
+  assert(regentlib.is_index_type(itype_input), "requires an index type as the first argument")
+  local dim = itype_input.dim
   local dtype_out_size = terralib.sizeof(dtype_out)
-  assert(dim >= 1 and dim <= 4, "currently only 1 <= dim <= 4 is supported")
+  assert(dim >= 1 and dim <= 3, "currently only 1 <= dim <= 3 is supported")
   assert(dtype_in == float or dtype_in == double or dtype_in == complex32 or dtype_in == complex64, "input type must be float/double/complex32/complex64")
   assert(dtype_out == complex32 or dtype_out == complex64, "output type must be complex32/complex64")
+
+  local itype = itype_input
+  if batch_flag then
+    dim = dim + 1
+    if itype == int1d then 
+      itype = int2d
+    elseif itype == int2d then 
+      itype = int3d
+    elseif itype == int3d then 
+      itype = int4d
+    end
+  end
 
    -- Single-precision transforms
   local float_to_complex32_transform = (dtype_in == float and dtype_out == complex32)

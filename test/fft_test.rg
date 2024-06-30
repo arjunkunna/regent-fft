@@ -71,17 +71,17 @@ local compare_regions_4d_complex64 = make_compare_regions_task(region(ispace(int
 
 -- INTERFACES
 
-local fft1d_float_complex32 = fft.generate_fft_interface(int1d, float, complex32)
-local fft1d_complex32_complex32 = fft.generate_fft_interface(int1d, complex32, complex32)
+local fft1d_float_complex32 = fft.generate_fft_interface(int1d, float, complex32, false)
+local fft1d_complex32_complex32 = fft.generate_fft_interface(int1d, complex32, complex32, false)
 
-local fft1d_double_complex64 = fft.generate_fft_interface(int1d, double, complex64)
-local fft1d_complex64_complex64 = fft.generate_fft_interface(int1d, complex64, complex64)
-local fft2d_complex64_complex64 = fft.generate_fft_interface(int2d, complex64, complex64)
-local fft3d_complex64_complex64 = fft.generate_fft_interface(int3d, complex64, complex64)
+local fft1d_double_complex64 = fft.generate_fft_interface(int1d, double, complex64, false)
+local fft1d_complex64_complex64 = fft.generate_fft_interface(int1d, complex64, complex64, false)
+local fft2d_complex64_complex64 = fft.generate_fft_interface(int2d, complex64, complex64, false)
+local fft3d_complex64_complex64 = fft.generate_fft_interface(int3d, complex64, complex64, false)
 
-local fft2d_batch_double_complex64 = fft.generate_fft_interface(int3d, double, complex64)
-local fft2d_batch_complex64_complex64 = fft.generate_fft_interface(int3d, complex64, complex64)
-local fft3d_batch_complex64_complex64 = fft.generate_fft_interface(int4d, complex64, complex64)
+local fft2d_batch_double_complex64 = fft.generate_fft_interface(int3d, double, complex64, false)
+local fft2d_batch_complex64_complex64 = fft.generate_fft_interface(int2d, complex64, complex64, true)
+local fft3d_batch_complex64_complex64 = fft.generate_fft_interface(int3d, complex64, complex64, true)
 
 -- TEST FUNCTIONS
 

@@ -38,39 +38,39 @@ if gpu_available then
 
   terra cufft_assert(result : cufft_c.cufftResult)
     var status = "UNKNOWN"
-    if result == 0 then
+    if result == cufft_c.CUFFT_SUCCESS then
       status = "CUFFT_SUCCESS"
-    elseif result == 1 then
+    elseif result == cufft_c.CUFFT_INVALID_PLAN then
       status = "CUFFT_INVALID_PLAN"
-    elseif result == 2 then
+    elseif result == cufft_c.CUFFT_ALLOC_FAILED then
       status = "CUFFT_ALLOC_FAILED"
-    elseif result == 3 then
+    elseif result == cufft_c.CUFFT_INVALID_TYPE then
       status = "CUFFT_INVALID_TYPE"
-    elseif result == 4 then
+    elseif result == cufft_c.CUFFT_INVALID_VALUE then
       status = "CUFFT_INVALID_VALUE"
-    elseif result == 5 then
+    elseif result == cufft_c.CUFFT_INTERNAL_ERROR then
       status = "CUFFT_INTERNAL_ERROR"
-    elseif result == 6 then
+    elseif result == cufft_c.CUFFT_EXEC_FAILED then
       status = "CUFFT_EXEC_FAILED"
-    elseif result == 7 then
+    elseif result == cufft_c.CUFFT_SETUP_FAILED then
       status = "CUFFT_SETUP_FAILED"
-    elseif result == 8 then
+    elseif result == cufft_c.CUFFT_INVALID_SIZE then
       status = "CUFFT_INVALID_SIZE"
-    elseif result == 9 then
+    elseif result == cufft_c.CUFFT_UNALIGNED_DATA then
       status = "CUFFT_UNALIGNED_DATA"
-    elseif result == 10 then
+    elseif result == cufft_c.CUFFT_INCOMPLETE_PARAMETER_LIST then
       status = "CUFFT_INCOMPLETE_PARAMETER_LIST"
-    elseif result == 11 then
+    elseif result == cufft_c.CUFFT_INVALID_DEVICE then
       status = "CUFFT_INVALID_DEVICE"
-    elseif result == 12 then
+    elseif result == cufft_c.CUFFT_PARSE_ERROR then
       status = "CUFFT_PARSE_ERROR"
-    elseif result == 13 then
+    elseif result == cufft_c.CUFFT_NO_WORKSPACE then
       status = "CUFFT_NO_WORKSPACE"
-    elseif result == 14 then
+    elseif result == cufft_c.CUFFT_NOT_IMPLEMENTED then
       status = "CUFFT_NOT_IMPLEMENTED"
-    elseif result == 15 then
+    elseif result == cufft_c.CUFFT_LICENSE_ERROR then
       status = "CUFFT_LICENSE_ERROR"
-    elseif result == 16 then
+    elseif result == cufft_c.CUFFT_NOT_SUPPORTED then
       status = "CUFFT_NOT_SUPPORTED"
     end
     regentlib.assert(result == cufft_c.CUFFT_SUCCESS, status)

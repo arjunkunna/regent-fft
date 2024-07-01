@@ -131,7 +131,7 @@ The way that a plan is initialized depends on the usage mode. In
 general, plans are stored in a region which is managed by the
 user. The plan region may be a subregion and need not start at zero,
 but it must contain at least a number of elements depending on the
-mode: 1 in non-distributed mode, `N` in distributed mode where `N` is
+mode: 1 in non-distributed mode, and `N` in distributed mode - where `N` is
 the number of nodes.
 
 In non-distributed mode, the plan region can be initialized as follows:

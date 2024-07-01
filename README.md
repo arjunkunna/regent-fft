@@ -18,8 +18,8 @@ The CPU mode is powered by [FFTW](https://www.fftw.org/), and the GPU mode by
 
 Both Complex-to-Complex and Real-To-Complex transformations are supported.
 
-Both single-precision and double-precision modes are supported i.e. both `float`
-/ `complex32` and `double` / `complex64` types.
+Both single-precision and double-precision modes are supported (i.e., both `float`
+/ `complex32` and `double` / `complex64` types).
 
 Batched transforms are also supported.
 

@@ -19,7 +19,7 @@ The CPU mode is powered by [FFTW](https://www.fftw.org/), and the GPU mode by
 Both Complex-to-Complex and Real-To-Complex transformations are supported.
 
 Both single-precision and double-precision modes are supported (i.e., both `float`
-/ `complex32` and `double` / `complex64` types).
+/ `complex32` and `double` / `complex64` types.)
 
 Batched transforms are also supported.
 
@@ -29,7 +29,7 @@ Batched transforms are also supported.
 
 First, make sure you have Regent installed. (If you are using Sapling, please
 refer to the [Sapling guide](https://github.com/StanfordLegion/sapling-guide).)
-Be sure to install with `MAX_DIM=4` (for Make) or `-DLegion_MAX_DIM=4` (for CMake).
+Be sure to install with `MAX_DIM=4` (for Make) or `-DLegion_MAX_DIM=4` (for CMake.)
 
 Note that on Sapling you will want to load the following modules:
 

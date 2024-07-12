@@ -1,0 +1,30 @@
+name: Regent-FFT Tests
+
+run-name: ${{ github.actor }} is testing Regent-FFT
+
+on: 
+  push:
+  pull_request:
+
+jobs:
+  regent-FFT-tests:
+    runs-on: ubuntu-22.04
+
+    strategy: 
+      matrix: 
+        debug: ['1', '0']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run clang-format
+        run: |
+          clang-format -i test/*.{h,cc}
+          git status
+          git diff --exit-code
+
+      - name: Run tests
+        env:
+          DEBUG: ${{ matrix.debug }}
+        run: ./test.sh

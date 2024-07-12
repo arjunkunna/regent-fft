@@ -37,6 +37,7 @@ def driver(thread_count):
     fftw_tar = os.path.join(root_dir, '%s.tar.gz' % fftw_basename)
     fftw_src = os.path.join(root_dir, fftw_basename)
     fftw_build = os.path.join(root_dir, fftw_basename, 'build')
+    fftw_build_single = os.path.join(root_dir, fftw_basename, 'build_single')
     fftw_install = os.path.join(root_dir, fftw_basename, 'install')
 
     try:
@@ -50,8 +51,11 @@ def driver(thread_count):
     download(fftw_tar, 'http://www.fftw.org/%s.tar.gz' % fftw_basename, '59831bd4b2705381ee395e54aa6e0069b10c3626')
     subprocess.check_call(['tar', 'xfz', fftw_tar], cwd=root_dir)
     os.mkdir(fftw_build)
+    os.mkdir(fftw_build_single)
     subprocess.check_call([os.path.join(fftw_src, 'configure'), '--enable-openmp', '--disable-mpi', '--enable-shared', '--with-pic', '--prefix=%s' % fftw_install], cwd=fftw_build)
     subprocess.check_call(['make', 'install', '-j%s' % thread_count], cwd=fftw_build)
+    subprocess.check_call([os.path.join(fftw_src, 'configure'), '--enable-openmp', '--disable-mpi', '--enable-shared', '--with-pic', '--enable-single', '--prefix=%s' % fftw_install], cwd=fftw_build_single)
+    subprocess.check_call(['make', 'install', '-j%s' % thread_count], cwd=fftw_build_single)
 
     with open(os.path.join(root_dir, 'env.sh'), 'w') as f:
         f.write(r'''

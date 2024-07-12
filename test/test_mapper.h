@@ -1,4 +1,4 @@
-/* Copyright 2020 Stanford University
+/* Copyright 2024 Stanford University
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,8 +13,8 @@
  * limitations under the License.
  */
 
-#ifndef __TEST_H__
-#define __TEST_H__
+#ifndef __TEST_MAPPER_H__
+#define __TEST_MAPPER_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,4 +26,4 @@ void register_mappers();
 }
 #endif
 
-#endif // __TEST_H__
+#endif  // __TEST_MAPPER_H__

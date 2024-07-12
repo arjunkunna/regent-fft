@@ -1,4 +1,8 @@
 *~
-
+legion
 /fftw-*
 env.sh
+valgrind*
+gdb*
+*.log
+*.pdf
